@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import StarRating from '../components/StarRating'
 import { supabase } from '../lib/supabase'
-
-const isLoggedIn = false
+import { useAuth } from '../hooks/useAuth'
 
 function ReviewCard({ review }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
@@ -56,6 +55,7 @@ function ReviewCard({ review }) {
 
 export default function GrandPrix() {
   const { saison, slug } = useParams()
+  const { user } = useAuth()
   const [classementVisible, setClassementVisible] = useState(false)
   const [qualifsVisible, setQualifsVisible] = useState(false)
   const [race, setRace] = useState(null)
@@ -210,7 +210,7 @@ export default function GrandPrix() {
           </div>
 
           {/* Action noter */}
-          {!isLoggedIn && (
+          {!user && (
             <div className="pt-2">
               <Link to="/login" className="text-sm text-muted hover:text-white transition-colors">
                 Connectez-vous pour noter ce GP
@@ -311,14 +311,14 @@ export default function GrandPrix() {
           <h2 className="text-lg font-bold text-white">
             Critiques <span className="text-subtle font-normal text-sm">({reviewCount})</span>
           </h2>
-          {isLoggedIn && (
+          {user && (
             <button className="rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors">
               Écrire une critique
             </button>
           )}
         </div>
 
-        {!isLoggedIn && (
+        {!user && (
           <div className="mb-6 rounded-lg border border-line bg-card p-4 flex items-center justify-between gap-4">
             <p className="text-sm text-muted">Connectez-vous pour écrire une critique.</p>
             <Link to="/login" className="text-sm font-medium text-f1-red hover:text-f1-red-hover transition-colors shrink-0">

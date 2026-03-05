@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 // Regex username : 3-20 caractères, minuscules, chiffres, tiret, underscore
 const USERNAME_REGEX = /^[a-z0-9_-]{3,20}$/
@@ -14,20 +15,21 @@ export default function Register() {
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
+  const [confirmationSent, setConfirmationSent] = useState(false)
+  const navigate = useNavigate()
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setForm((prev) => ({ ...prev, [name]: value }))
-    // Effacer l'erreur du champ modifié
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }))
   }
 
   const validate = () => {
     const newErrors = {}
-    if (!form.email) newErrors.email = 'L\'e-mail est requis.'
+    if (!form.email) newErrors.email = "L'e-mail est requis."
     if (!USERNAME_REGEX.test(form.username))
       newErrors.username = '3 à 20 caractères : lettres minuscules, chiffres, - ou _'
-    if (!form.displayName.trim()) newErrors.displayName = 'Le nom d\'affichage est requis.'
+    if (!form.displayName.trim()) newErrors.displayName = "Le nom d'affichage est requis."
     if (form.password.length < 8) newErrors.password = '8 caractères minimum.'
     if (form.password !== form.passwordConfirm)
       newErrors.passwordConfirm = 'Les mots de passe ne correspondent pas.'
@@ -42,17 +44,76 @@ export default function Register() {
       return
     }
     setLoading(true)
-    // TODO Phase 5 : appel Supabase auth.signUp + création profil
-    setTimeout(() => {
+    setErrors({})
+
+    // Check username uniqueness
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', form.username)
+      .maybeSingle()
+
+    if (existing) {
+      setErrors({ username: 'Ce nom d\'utilisateur est déjà pris.' })
       setLoading(false)
-      setErrors({ global: 'Inscription Supabase non encore implémentée.' })
-    }, 500)
+      return
+    }
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        data: {
+          username: form.username,
+          display_name: form.displayName,
+        },
+      },
+    })
+
+    if (signUpError) {
+      setErrors({ global: signUpError.message })
+      setLoading(false)
+      return
+    }
+
+    if (data.session) {
+      // Confirmation e-mail désactivée — session immédiate
+      // Upsert profil au cas où le trigger n'inclut pas username/display_name
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        username: form.username,
+        display_name: form.displayName,
+      })
+      navigate('/')
+    } else {
+      // Confirmation e-mail requise
+      setConfirmationSent(true)
+      setLoading(false)
+    }
   }
 
   const inputClass = (field) =>
     `w-full rounded-lg border ${
       errors[field] ? 'border-red-700' : 'border-line'
     } bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-f1-red transition-colors`
+
+  if (confirmationSent) {
+    return (
+      <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-12">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <p className="text-xl font-black text-f1-red">PITSTOPPD</p>
+          <p className="text-white font-semibold">Vérifiez votre e-mail</p>
+          <p className="text-sm text-muted">
+            Un lien de confirmation a été envoyé à <span className="text-white">{form.email}</span>.
+            Cliquez sur ce lien pour activer votre compte.
+          </p>
+          <Link to="/login" className="inline-block text-sm font-medium text-muted hover:text-white transition-colors">
+            Retour à la connexion
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-12">

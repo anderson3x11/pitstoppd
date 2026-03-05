@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
 const TODAY = new Date().toISOString().split('T')[0]
-const isLoggedIn = false
 
 export default function Home() {
+  const { user } = useAuth()
   const [gps, setGps] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -80,7 +81,7 @@ export default function Home() {
         {/* ── Critiques de vos amis ── */}
         <section>
           <h2 className="text-lg font-bold mb-4">Critiques de vos amis</h2>
-          {isLoggedIn ? (
+          {user ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <p className="text-muted text-sm col-span-full">
                 Aucune critique récente.

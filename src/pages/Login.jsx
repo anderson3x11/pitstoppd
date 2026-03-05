@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const navigate = useNavigate()
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
@@ -14,11 +16,16 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    // TODO Phase 5 : appel Supabase auth.signInWithPassword
-    setTimeout(() => {
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    })
+    if (authError) {
+      setError('E-mail ou mot de passe incorrect.')
       setLoading(false)
-      setError('Connexion Supabase non encore implémentée.')
-    }, 500)
+    } else {
+      navigate('/')
+    }
   }
 
   return (
