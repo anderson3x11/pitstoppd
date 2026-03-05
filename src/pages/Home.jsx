@@ -1,15 +1,59 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
+import StarRating from '../components/StarRating'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
 const TODAY = new Date().toISOString().split('T')[0]
 
+function FeedCard({ review }) {
+  const [spoilerVisible, setSpoilerVisible] = useState(false)
+
+  const formattedDate = new Date(review.created_at).toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  })
+
+  return (
+    <div className="rounded-lg border border-line bg-card p-4 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5">
+          <Link to={`/${review.username}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors">
+            {review.displayName}
+          </Link>
+          <p className="text-xs text-subtle">
+            <Link to={`/gps/${review.raceSeason}/${review.raceSlug}`} className="hover:text-white transition-colors">
+              {review.raceName}
+            </Link>
+            {' · '}{formattedDate}
+          </p>
+        </div>
+        {review.rating != null && <StarRating value={review.rating} size="sm" showValue />}
+      </div>
+
+      {review.spoiler && !spoilerVisible ? (
+        <div className="rounded bg-card-hover border border-line px-3 py-2 text-center">
+          <p className="text-xs text-subtle mb-1">Contient des spoilers</p>
+          <button
+            onClick={() => setSpoilerVisible(true)}
+            className="text-xs font-medium text-muted hover:text-white transition-colors"
+          >
+            Afficher quand même
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted leading-relaxed line-clamp-3">{review.content}</p>
+      )}
+    </div>
+  )
+}
+
 export default function Home() {
   const { user } = useAuth()
   const [gps, setGps] = useState([])
   const [loading, setLoading] = useState(true)
+  const [feedReviews, setFeedReviews] = useState([])
+  const [feedLoading, setFeedLoading] = useState(false)
 
   useEffect(() => {
     supabase
@@ -24,13 +68,64 @@ export default function Home() {
       })
   }, [])
 
-  const gpCards = gps.map((gp) => ({
-    ...gp,
-    posterUrl: gp.poster_url,
-    avgRating: null,
-    reviewCount: null,
-  }))
+  useEffect(() => {
+    if (!user) { setFeedReviews([]); return }
 
+    setFeedLoading(true)
+
+    async function loadFeed() {
+      const { data: followsData } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id)
+
+      if (!followsData?.length) { setFeedLoading(false); return }
+
+      const followingIds = followsData.map((f) => f.following_id)
+
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select('id, content, spoiler, created_at, user_id, race_id, races(name, season, slug)')
+        .in('user_id', followingIds)
+        .order('created_at', { ascending: false })
+        .limit(9)
+
+      if (!reviewsData?.length) { setFeedLoading(false); return }
+
+      const userIds = [...new Set(reviewsData.map((r) => r.user_id))]
+      const raceIds = [...new Set(reviewsData.map((r) => r.race_id).filter(Boolean))]
+
+      const [{ data: profilesData }, { data: ratingsData }] = await Promise.all([
+        supabase.from('profiles').select('id, username, display_name').in('id', userIds),
+        supabase.from('ratings').select('user_id, race_id, score').in('user_id', userIds).in('race_id', raceIds),
+      ])
+
+      const profileMap = {}
+      for (const p of profilesData ?? []) profileMap[p.id] = p
+
+      const ratingMap = {}
+      for (const r of ratingsData ?? []) ratingMap[`${r.user_id}_${r.race_id}`] = r.score
+
+      setFeedReviews(reviewsData.map((r) => ({
+        id: r.id,
+        content: r.content,
+        spoiler: r.spoiler,
+        created_at: r.created_at,
+        username: profileMap[r.user_id]?.username,
+        displayName: profileMap[r.user_id]?.display_name,
+        raceName: r.races?.name,
+        raceSeason: r.races?.season,
+        raceSlug: r.races?.slug,
+        rating: ratingMap[`${r.user_id}_${r.race_id}`] ?? null,
+      })))
+
+      setFeedLoading(false)
+    }
+
+    loadFeed()
+  }, [user])
+
+  const gpCards = gps.map((gp) => ({ ...gp, posterUrl: gp.poster_url, avgRating: null, reviewCount: null }))
   const latestGP = gpCards[0] ?? null
 
   return (
@@ -39,28 +134,19 @@ export default function Home() {
       <section className="relative border-b border-line">
         <div className="absolute inset-0 bg-gradient-to-b from-card-hover/60 to-page" />
         <div className="relative mx-auto max-w-4xl px-4 py-16 flex items-end gap-8">
-          {/* Poster placeholder */}
           <div className="hidden sm:block w-28 shrink-0 rounded-lg overflow-hidden border border-line aspect-[2/3] bg-card-hover">
             <div className="h-full w-full flex flex-col items-center justify-center p-2">
               <span className="text-3xl mb-1">🏁</span>
             </div>
           </div>
-
-          {/* Infos */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">
-              Dernier Grand Prix
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">Dernier Grand Prix</p>
             {loading ? (
               <p className="text-muted text-sm">Chargement…</p>
             ) : latestGP ? (
               <>
-                <h1 className="text-3xl font-black text-white leading-tight">
-                  {latestGP.name}
-                </h1>
-                <p className="text-sm text-muted">
-                  {latestGP.season} · {latestGP.circuit}
-                </p>
+                <h1 className="text-3xl font-black text-white leading-tight">{latestGP.name}</h1>
+                <p className="text-sm text-muted">{latestGP.season} · {latestGP.circuit}</p>
                 <div className="pt-2">
                   <Link
                     to={`/gps/${latestGP.season}/${latestGP.slug}`}
@@ -78,33 +164,34 @@ export default function Home() {
       </section>
 
       <div className="mx-auto max-w-4xl px-4 py-12 space-y-14">
+
         {/* ── Critiques de vos amis ── */}
         <section>
           <h2 className="text-lg font-bold mb-4">Critiques de vos amis</h2>
           {user ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <p className="text-muted text-sm col-span-full">
-                Aucune critique récente.
-              </p>
-            </div>
+            feedLoading ? (
+              <p className="text-muted text-sm">Chargement…</p>
+            ) : feedReviews.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {feedReviews.map((r) => <FeedCard key={r.id} review={r} />)}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-line bg-card p-6 text-center space-y-2">
+                <p className="text-sm text-muted">Aucune critique récente.</p>
+                <p className="text-xs text-subtle">Suivez des utilisateurs pour voir leurs critiques ici.</p>
+              </div>
+            )
           ) : (
             <div className="rounded-lg border border-line bg-card p-8 text-center space-y-3">
               <p className="text-white font-semibold">Rejoignez la communauté</p>
               <p className="text-sm text-muted max-w-sm mx-auto">
-                Connectez-vous pour voir les notes et critiques des utilisateurs
-                que vous suivez.
+                Connectez-vous pour voir les notes et critiques des utilisateurs que vous suivez.
               </p>
               <div className="flex items-center justify-center gap-3 pt-2">
-                <Link
-                  to="/register"
-                  className="rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
-                >
+                <Link to="/register" className="rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors">
                   Créer un compte
                 </Link>
-                <Link
-                  to="/login"
-                  className="text-sm font-medium text-muted hover:text-white transition-colors"
-                >
+                <Link to="/login" className="text-sm font-medium text-muted hover:text-white transition-colors">
                   Se connecter
                 </Link>
               </div>
@@ -116,20 +203,17 @@ export default function Home() {
         <section>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold">Derniers Grands Prix</h2>
-            <Link to="/gps" className="text-sm text-muted hover:text-white transition-colors">
-              Voir tout →
-            </Link>
+            <Link to="/gps" className="text-sm text-muted hover:text-white transition-colors">Voir tout →</Link>
           </div>
           {loading ? (
             <p className="text-muted text-sm">Chargement…</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {gpCards.map((gp) => (
-                <GPCard key={gp.id} gp={gp} />
-              ))}
+              {gpCards.map((gp) => <GPCard key={gp.id} gp={gp} />)}
             </div>
           )}
         </section>
+
       </div>
     </div>
   )

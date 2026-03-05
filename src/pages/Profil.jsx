@@ -4,13 +4,45 @@ import StarRating from '../components/StarRating'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
+function ReviewCard({ review }) {
+  const [spoilerVisible, setSpoilerVisible] = useState(false)
+
+  return (
+    <div className="rounded-lg border border-line bg-card p-4 space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          to={`/gps/${review.raceSeason}/${review.raceSlug}`}
+          className="text-sm font-semibold text-white hover:text-f1-red transition-colors"
+        >
+          {review.raceName}
+        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          {review.rating != null && <StarRating value={review.rating} size="sm" showValue />}
+          <span className="text-xs text-subtle">{review.raceSeason}</span>
+        </div>
+      </div>
+
+      {review.spoiler && !spoilerVisible ? (
+        <div className="rounded bg-card-hover border border-line px-3 py-2 text-center">
+          <p className="text-xs text-subtle mb-1">Contient des spoilers</p>
+          <button onClick={() => setSpoilerVisible(true)} className="text-xs font-medium text-muted hover:text-white transition-colors">
+            Afficher quand même
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted leading-relaxed">{review.content}</p>
+      )}
+    </div>
+  )
+}
+
 export default function Profil() {
   const { username } = useParams()
   const { user, profile: currentUserProfile } = useAuth()
 
   const [profil, setProfil] = useState(null)
   const [stats, setStats] = useState({ notes: 0, critiques: 0, abonnes: 0, abonnements: 0 })
-  const [derniersGPs, setDerniersGPs] = useState([])
+  const [dernieresReviews, setDernieresReviews] = useState([])
   const [topPilotes, setTopPilotes] = useState([])
   const [isFollowing, setIsFollowing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -22,7 +54,7 @@ export default function Profil() {
     setLoading(true)
     setProfil(null)
     setTopPilotes([])
-    setDerniersGPs([])
+    setDernieresReviews([])
     setIsFollowing(false)
 
     async function load() {
@@ -58,22 +90,34 @@ export default function Profil() {
         abonnements: abonnementsCount ?? 0,
       })
 
-      const { data: ratingsData } = await supabase
-        .from('ratings')
-        .select('score, races(id, name, season, slug)')
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select('id, content, spoiler, created_at, race_id, races(id, name, season, slug)')
         .eq('user_id', profilData.id)
         .order('created_at', { ascending: false })
         .limit(4)
 
-      setDerniersGPs(
-        (ratingsData ?? []).map((r) => ({
-          id: r.races?.id,
-          name: r.races?.name,
-          season: r.races?.season,
-          slug: r.races?.slug,
-          rating: r.score,
-        }))
-      )
+      if (reviewsData?.length) {
+        const raceIds = reviewsData.map((r) => r.race_id).filter(Boolean)
+        const { data: ratingsData } = await supabase
+          .from('ratings')
+          .select('race_id, score')
+          .eq('user_id', profilData.id)
+          .in('race_id', raceIds)
+        const ratingMap = {}
+        for (const r of ratingsData ?? []) ratingMap[r.race_id] = r.score
+
+        setDernieresReviews(reviewsData.map((r) => ({
+          id: r.id,
+          content: r.content,
+          spoiler: r.spoiler,
+          created_at: r.created_at,
+          raceName: r.races?.name,
+          raceSeason: r.races?.season,
+          raceSlug: r.races?.slug,
+          rating: ratingMap[r.race_id] ?? null,
+        })))
+      }
 
       if (profilData.top_pilots?.length > 0) {
         const { data: driversData } = await supabase
@@ -246,27 +290,17 @@ export default function Profil() {
         </section>
       )}
 
-      {/* ── Derniers GPs notés ── */}
+      {/* ── Dernières critiques ── */}
       <section>
-        <h2 className="text-base font-bold text-white mb-4">Derniers Grands Prix notés</h2>
-        {derniersGPs.length > 0 ? (
-          <div className="space-y-2">
-            {derniersGPs.map((gp) => (
-              <Link
-                key={gp.id}
-                to={`/gps/${gp.season}/${gp.slug}`}
-                className="flex items-center justify-between rounded-lg border border-line bg-card px-4 py-3 hover:border-subtle hover:bg-card-hover transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-white">{gp.name}</p>
-                  <p className="text-xs text-subtle">{gp.season}</p>
-                </div>
-                <StarRating value={gp.rating} size="sm" showValue />
-              </Link>
+        <h2 className="text-base font-bold text-white mb-4">Dernières critiques</h2>
+        {dernieresReviews.length > 0 ? (
+          <div className="space-y-3">
+            {dernieresReviews.map((review) => (
+              <ReviewCard key={review.id} review={review} />
             ))}
           </div>
         ) : (
-          <p className="text-sm text-subtle">Aucun Grand Prix noté pour l&apos;instant.</p>
+          <p className="text-sm text-subtle">Aucune critique pour l&apos;instant.</p>
         )}
       </section>
 

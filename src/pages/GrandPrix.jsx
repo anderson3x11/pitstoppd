@@ -4,7 +4,7 @@ import StarRating from '../components/StarRating'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
-function ReviewCard({ review }) {
+function ReviewCard({ review, isLiked, onLike }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
 
   const formattedDate = new Date(review.created_at).toLocaleDateString('fr-FR', {
@@ -16,7 +16,7 @@ function ReviewCard({ review }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Link to={`/${review.username}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors">
-            {review.username}
+            {review.displayName}
           </Link>
           <span className="text-subtle text-xs">·</span>
           <span className="text-xs text-subtle">{formattedDate}</span>
@@ -27,10 +27,7 @@ function ReviewCard({ review }) {
       {review.spoiler && !spoilerVisible ? (
         <div className="rounded bg-card-hover border border-line px-4 py-3 text-center">
           <p className="text-xs text-subtle mb-2">Cette critique contient des spoilers</p>
-          <button
-            onClick={() => setSpoilerVisible(true)}
-            className="text-xs font-medium text-muted hover:text-white transition-colors"
-          >
+          <button onClick={() => setSpoilerVisible(true)} className="text-xs font-medium text-muted hover:text-white transition-colors">
             Afficher quand même
           </button>
         </div>
@@ -39,8 +36,11 @@ function ReviewCard({ review }) {
       )}
 
       <div className="flex items-center gap-4 pt-1">
-        <button className="flex items-center gap-1.5 text-xs text-subtle hover:text-white transition-colors">
-          <span>♡</span>
+        <button
+          onClick={() => onLike?.(review.id)}
+          className={`flex items-center gap-1.5 text-xs transition-colors ${isLiked ? 'text-f1-red' : 'text-subtle hover:text-white'}`}
+        >
+          <span>{isLiked ? '♥' : '♡'}</span>
           <span>{review.likes ?? 0}</span>
         </button>
         {review.spoiler && (
@@ -53,11 +53,70 @@ function ReviewCard({ review }) {
   )
 }
 
+function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, onClose, submitting }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-xl border border-line bg-card p-6 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-white">
+            {userReview ? 'Modifier ma critique' : 'Écrire une critique'}
+          </h3>
+          <button onClick={onClose} className="text-subtle hover:text-white transition-colors text-lg leading-none">
+            ✕
+          </button>
+        </div>
+
+        <p className="text-xs text-subtle">{race.name} · {race.season}</p>
+
+        <form onSubmit={onSubmit} className="space-y-3">
+          <textarea
+            value={reviewForm.content}
+            onChange={(e) => setReviewForm((prev) => ({ ...prev, content: e.target.value }))}
+            rows={5}
+            placeholder="Votre critique…"
+            required
+            autoFocus
+            className="w-full rounded-lg border border-line bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-f1-red transition-colors resize-none"
+          />
+          <div className="flex items-center justify-between gap-4">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={reviewForm.spoiler}
+                onChange={(e) => setReviewForm((prev) => ({ ...prev, spoiler: e.target.checked }))}
+                className="accent-f1-red"
+              />
+              <span className="text-sm text-muted">Contient des spoilers</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={onClose} className="text-sm text-subtle hover:text-white transition-colors">
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded bg-f1-red px-4 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60"
+              >
+                {submitting ? 'Envoi…' : userReview ? 'Modifier' : 'Publier'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function GrandPrix() {
   const { saison, slug } = useParams()
-  const { user } = useAuth()
-  const [classementVisible, setClassementVisible] = useState(false)
-  const [qualifsVisible, setQualifsVisible] = useState(false)
+  const { user, profile } = useAuth()
+
   const [race, setRace] = useState(null)
   const [raceDrivers, setRaceDrivers] = useState([])
   const [reviews, setReviews] = useState([])
@@ -65,113 +124,168 @@ export default function GrandPrix() {
   const [reviewCount, setReviewCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  const [userRating, setUserRating] = useState(null)
+  const [userReview, setUserReview] = useState(null)
+  const [userLikes, setUserLikes] = useState(new Set())
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [reviewForm, setReviewForm] = useState({ content: '', spoiler: false })
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+
   useEffect(() => {
     setLoading(true)
+    setUserRating(null)
+    setUserReview(null)
+    setUserLikes(new Set())
+    setShowReviewModal(false)
 
     async function load() {
-      // 1. Fetch race
       const { data: raceData } = await supabase
-        .from('races')
-        .select('*')
-        .eq('season', parseInt(saison))
-        .eq('slug', slug)
-        .single()
+        .from('races').select('*')
+        .eq('season', parseInt(saison)).eq('slug', slug).single()
 
-      if (!raceData) {
-        setLoading(false)
-        return
-      }
+      if (!raceData) { setLoading(false); return }
       setRace(raceData)
 
-      // 2. Fetch race_drivers with driver info
       const { data: rdData } = await supabase
         .from('race_drivers')
         .select('position, grid_position, status, driver_id, drivers(id, given_name, family_name)')
         .eq('race_id', raceData.id)
-
       setRaceDrivers(rdData ?? [])
 
-      // 3. Fetch ratings to compute average
-      const { data: ratingsData } = await supabase
-        .from('ratings')
-        .select('score')
-        .eq('race_id', raceData.id)
-
-      if (ratingsData && ratingsData.length > 0) {
-        const avg = ratingsData.reduce((sum, r) => sum + r.score, 0) / ratingsData.length
+      const { data: ratingsData } = await supabase.from('ratings').select('score').eq('race_id', raceData.id)
+      if (ratingsData?.length) {
+        const avg = ratingsData.reduce((s, r) => s + r.score, 0) / ratingsData.length
         setAvgRating(Math.round(avg * 10) / 10)
       }
 
-      // 4. Fetch reviews
       const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('id, content, spoiler, created_at, user_id')
-        .eq('race_id', raceData.id)
-        .order('created_at', { ascending: false })
-
+        .from('reviews').select('id, content, spoiler, created_at, user_id')
+        .eq('race_id', raceData.id).order('created_at', { ascending: false })
       setReviewCount(reviewsData?.length ?? 0)
 
-      if (reviewsData && reviewsData.length > 0) {
+      if (reviewsData?.length) {
+        const reviewIds = reviewsData.map((r) => r.id)
         const userIds = [...new Set(reviewsData.map((r) => r.user_id))]
-
-        const [{ data: profilesData }, { data: userRatings }] = await Promise.all([
-          supabase.from('profiles').select('id, username').in('id', userIds),
+        const [{ data: profilesData }, { data: userRatings }, { data: likesData }] = await Promise.all([
+          supabase.from('profiles').select('id, username, display_name').in('id', userIds),
           supabase.from('ratings').select('user_id, score').eq('race_id', raceData.id).in('user_id', userIds),
+          supabase.from('likes').select('review_id').in('review_id', reviewIds),
         ])
-
         const profileMap = {}
-        for (const p of profilesData ?? []) profileMap[p.id] = p.username
-
+        for (const p of profilesData ?? []) profileMap[p.id] = p
         const ratingMap = {}
         for (const r of userRatings ?? []) ratingMap[r.user_id] = r.score
+        const likesMap = {}
+        for (const l of likesData ?? []) likesMap[l.review_id] = (likesMap[l.review_id] ?? 0) + 1
 
-        setReviews(
-          reviewsData.map((r) => ({
-            ...r,
-            username: profileMap[r.user_id] ?? 'Anonyme',
-            rating: ratingMap[r.user_id] ?? null,
-          }))
-        )
+        setReviews(reviewsData.map((r) => ({
+          ...r,
+          username: profileMap[r.user_id]?.username ?? 'anonyme',
+          displayName: profileMap[r.user_id]?.display_name ?? 'Anonyme',
+          rating: ratingMap[r.user_id] ?? null,
+          likes: likesMap[r.id] ?? 0,
+        })))
+
+        if (user) {
+          const [{ data: myRating }, { data: myReview }, { data: myLikes }] = await Promise.all([
+            supabase.from('ratings').select('score').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle(),
+            supabase.from('reviews').select('id, content, spoiler').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle(),
+            supabase.from('likes').select('review_id').eq('user_id', user.id).in('review_id', reviewIds),
+          ])
+          setUserRating(myRating?.score ?? null)
+          setUserReview(myReview ?? null)
+          setUserLikes(new Set((myLikes ?? []).map((l) => l.review_id)))
+        }
+      } else if (user) {
+        const [{ data: myRating }, { data: myReview }] = await Promise.all([
+          supabase.from('ratings').select('score').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle(),
+          supabase.from('reviews').select('id, content, spoiler').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle(),
+        ])
+        setUserRating(myRating?.score ?? null)
+        setUserReview(myReview ?? null)
       }
 
       setLoading(false)
     }
 
     load()
-  }, [saison, slug])
+  }, [saison, slug, user?.id])
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
-        <p className="text-muted text-sm">Chargement…</p>
-      </div>
+  const handleRating = async (score) => {
+    if (!user || !race) return
+    setUserRating(score)
+    await supabase.from('ratings').upsert(
+      { user_id: user.id, race_id: race.id, score },
+      { onConflict: 'user_id,race_id' }
     )
+    const { data } = await supabase.from('ratings').select('score').eq('race_id', race.id)
+    if (data?.length) setAvgRating(Math.round((data.reduce((s, r) => s + r.score, 0) / data.length) * 10) / 10)
   }
 
-  if (!race) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
-        <p className="text-muted text-sm">Grand Prix introuvable.</p>
-      </div>
-    )
+  const handleOpenReviewModal = () => {
+    setReviewForm({ content: userReview?.content ?? '', spoiler: userReview?.spoiler ?? false })
+    setShowReviewModal(true)
   }
 
-  const formattedDate = new Date(race.date).toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  })
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault()
+    if (!user || !race || !reviewForm.content.trim()) return
+    setReviewSubmitting(true)
+    if (userReview) {
+      await supabase.from('reviews').update({ content: reviewForm.content, spoiler: reviewForm.spoiler }).eq('id', userReview.id)
+      const updated = { ...userReview, content: reviewForm.content, spoiler: reviewForm.spoiler }
+      setUserReview(updated)
+      setReviews((prev) => prev.map((r) => r.id === userReview.id ? { ...r, ...updated } : r))
+    } else {
+      const { data } = await supabase.from('reviews')
+        .insert({ user_id: user.id, race_id: race.id, content: reviewForm.content, spoiler: reviewForm.spoiler })
+        .select('id, content, spoiler, created_at').single()
+      if (data) {
+        setUserReview(data)
+        setReviews((prev) => [{ ...data, user_id: user.id, username: profile?.username ?? '', displayName: profile?.display_name ?? '', rating: userRating, likes: 0 }, ...prev])
+        setReviewCount((n) => n + 1)
+      }
+    }
+    setShowReviewModal(false)
+    setReviewSubmitting(false)
+  }
 
-  const classement = [...raceDrivers]
-    .filter((rd) => rd.position != null)
-    .sort((a, b) => a.position - b.position)
+  const handleLike = async (reviewId) => {
+    if (!user) return
+    const liked = userLikes.has(reviewId)
+    if (liked) {
+      await supabase.from('likes').delete().eq('user_id', user.id).eq('review_id', reviewId)
+      setUserLikes((prev) => { const n = new Set(prev); n.delete(reviewId); return n })
+      setReviews((prev) => prev.map((r) => r.id === reviewId ? { ...r, likes: Math.max(0, (r.likes ?? 1) - 1) } : r))
+    } else {
+      await supabase.from('likes').insert({ user_id: user.id, review_id: reviewId })
+      setUserLikes((prev) => new Set([...prev, reviewId]))
+      setReviews((prev) => prev.map((r) => r.id === reviewId ? { ...r, likes: (r.likes ?? 0) + 1 } : r))
+    }
+  }
 
-  const qualifs = [...raceDrivers]
-    .filter((rd) => rd.grid_position != null)
-    .sort((a, b) => a.grid_position - b.grid_position)
+  if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Chargement…</p></div>
+  if (!race) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Grand Prix introuvable.</p></div>
 
-  const pilotes = raceDrivers.map((rd) => rd.drivers).filter(Boolean)
+  const formattedDate = new Date(race.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const classement = [...raceDrivers].filter((rd) => rd.position != null).sort((a, b) => a.position - b.position)
+  const qualifs = [...raceDrivers].filter((rd) => rd.grid_position != null).sort((a, b) => a.grid_position - b.grid_position)
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+
+      {/* ── Modale critique ── */}
+      {showReviewModal && (
+        <ReviewModal
+          race={race}
+          userReview={userReview}
+          reviewForm={reviewForm}
+          setReviewForm={setReviewForm}
+          onSubmit={handleReviewSubmit}
+          onClose={() => setShowReviewModal(false)}
+          submitting={reviewSubmitting}
+        />
+      )}
 
       {/* ── En-tête ── */}
       <div className="flex gap-6 mb-10">
@@ -180,24 +294,21 @@ export default function GrandPrix() {
           {race.poster_url ? (
             <img src={race.poster_url} alt={race.name} className="h-full w-full object-cover" />
           ) : (
-            <div className="h-full w-full flex items-center justify-center">
-              <span className="text-3xl">🏁</span>
-            </div>
+            <div className="h-full w-full flex items-center justify-center"><span className="text-3xl">🏁</span></div>
           )}
         </div>
 
         {/* Infos principales */}
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-2 min-w-0">
           <div className="flex items-center gap-2 text-xs text-muted">
             <Link to="/gps" className="hover:text-white transition-colors">GPs</Link>
             <span>/</span>
             <Link to={`/saisons/${saison}`} className="hover:text-white transition-colors">{saison}</Link>
           </div>
-          <h1 className="text-3xl font-black text-white">{race.name}</h1>
+          <h1 className="text-3xl font-black text-white leading-tight">{race.name}</h1>
           <p className="text-sm text-muted capitalize">{formattedDate}</p>
           <p className="text-sm text-muted">{race.circuit} · {race.country}</p>
 
-          {/* Note globale */}
           <div className="flex items-center gap-3 pt-2">
             {avgRating != null ? (
               <>
@@ -208,136 +319,141 @@ export default function GrandPrix() {
               <span className="text-sm text-subtle">Aucune note pour l&apos;instant</span>
             )}
           </div>
+        </div>
 
-          {/* Action noter */}
-          {!user && (
-            <div className="pt-2">
-              <Link to="/login" className="text-sm text-muted hover:text-white transition-colors">
-                Connectez-vous pour noter ce GP
+        {/* ── Carte "Mon activité" ── */}
+        <div className="hidden sm:flex flex-col w-52 shrink-0 rounded-lg border border-line bg-card p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Mon activité</h3>
+
+          {user ? (
+            <>
+              {/* Note — centrée, valeur en grand si notée */}
+              <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                <StarRating
+                  value={userRating ?? 0}
+                  size="lg"
+                  interactive
+                  onChange={handleRating}
+                />
+                {userRating != null ? (
+                  <span className="text-3xl font-black text-star tabular-nums">
+                    {userRating.toFixed(1)}
+                  </span>
+                ) : (
+                  <p className="text-xs text-subtle italic">Pas encore noté</p>
+                )}
+              </div>
+
+              {/* Indicateur critique + bouton en bas */}
+              <div className="border-t border-line pt-3 space-y-2">
+                {userReview && (
+                  <p className="text-xs text-center text-subtle">
+                    ✓ Critique rédigée
+                  </p>
+                )}
+                <button
+                  onClick={handleOpenReviewModal}
+                  className="w-full rounded border border-line px-3 py-2 text-xs font-medium text-muted hover:text-white hover:border-subtle transition-colors text-center"
+                >
+                  {userReview ? 'Modifier ma critique' : 'Écrire une critique'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col justify-center space-y-3">
+              <p className="text-xs text-muted leading-relaxed">
+                Connectez-vous pour noter ce GP et écrire une critique.
+              </p>
+              <Link
+                to="/login"
+                className="block text-center rounded bg-f1-red px-3 py-2 text-xs font-semibold text-white hover:bg-f1-red-hover transition-colors"
+              >
+                Se connecter
               </Link>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Pilotes ayant participé ── */}
-      {pilotes.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-base font-bold mb-3 text-white">Pilotes</h2>
-          <div className="flex flex-wrap gap-2">
-            {pilotes.map((p) => (
-              <Link
-                key={p.id}
-                to={`/pilotes/${p.id}`}
-                className="rounded border border-line bg-card px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-subtle transition-colors"
+      {/* ── Classement + Qualifs | Critiques ── */}
+      <div className="grid grid-cols-3 gap-8">
+
+        {/* Colonne gauche — Classement + Qualifications */}
+        <div className="space-y-8">
+
+          {/* Classement — spoiler toggle désactivé pour l'instant, à revoir plus tard */}
+          <section>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Classement</h2>
+            <div className="rounded-lg border border-line overflow-hidden">
+              {classement.map((r) => (
+                <div key={r.driver_id} className="flex items-center gap-2.5 px-3 py-2 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
+                  <span className="w-4 text-xs font-bold text-muted tabular-nums text-right shrink-0">{r.position}</span>
+                  <Link to={`/pilotes/${r.driver_id}`} className="text-xs font-medium text-white hover:text-f1-red transition-colors flex-1 truncate">
+                    {r.drivers?.given_name} {r.drivers?.family_name}
+                  </Link>
+                  {r.status && r.status !== 'Finished' && (
+                    <span className="text-[10px] text-subtle shrink-0">{r.status}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Qualifications — spoiler toggle désactivé pour l'instant, à revoir plus tard */}
+          <section>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Qualifications</h2>
+            <div className="rounded-lg border border-line overflow-hidden">
+              {qualifs.map((q) => (
+                <div key={q.driver_id} className="flex items-center gap-2.5 px-3 py-2 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
+                  <span className="w-4 text-xs font-bold text-muted tabular-nums text-right shrink-0">{q.grid_position}</span>
+                  <Link to={`/pilotes/${q.driver_id}`} className="text-xs font-medium text-white hover:text-f1-red transition-colors flex-1 truncate">
+                    {q.drivers?.given_name} {q.drivers?.family_name}
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </section>
+
+        </div>
+
+        {/* Colonne droite — Critiques */}
+        <div className="col-span-2">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-bold text-white">
+              Critiques <span className="text-subtle font-normal text-sm">({reviewCount})</span>
+            </h2>
+            {/* Bouton mobile uniquement (la carte "Mon activité" est cachée sur mobile) */}
+            {user && (
+              <button
+                onClick={handleOpenReviewModal}
+                className="sm:hidden rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
               >
-                {p.given_name} {p.family_name}
+                {userReview ? 'Modifier' : 'Écrire'}
+              </button>
+            )}
+          </div>
+
+          {!user && (
+            <div className="mb-5 rounded-lg border border-line bg-card p-4 flex items-center justify-between gap-4">
+              <p className="text-sm text-muted">Connectez-vous pour écrire une critique.</p>
+              <Link to="/login" className="text-sm font-medium text-f1-red hover:text-f1-red-hover transition-colors shrink-0">
+                Se connecter
               </Link>
-            ))}
-          </div>
-        </section>
-      )}
+            </div>
+          )}
 
-      {/* ── Classement (spoiler) ── */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold text-white">Classement</h2>
-          <button
-            onClick={() => setClassementVisible(!classementVisible)}
-            className="text-xs font-medium text-muted hover:text-white transition-colors border border-line rounded px-2.5 py-1"
-          >
-            {classementVisible ? 'Masquer' : '🔒 Afficher les résultats'}
-          </button>
-        </div>
-        {classementVisible ? (
-          <div className="rounded-lg border border-line overflow-hidden">
-            {classement.map((r) => (
-              <div
-                key={r.driver_id}
-                className="flex items-center gap-4 px-4 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors"
-              >
-                <span className="w-5 text-sm font-bold text-muted tabular-nums text-right">{r.position}</span>
-                <Link to={`/pilotes/${r.driver_id}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors flex-1">
-                  {r.drivers?.given_name} {r.drivers?.family_name}
-                </Link>
-                {r.status && r.status !== 'Finished' && (
-                  <span className="text-xs text-subtle">{r.status}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-line bg-card px-4 py-6 text-center text-sm text-subtle">
-            Les résultats sont masqués. Cliquez pour les afficher.
-          </div>
-        )}
-      </section>
-
-      {/* ── Qualifications (spoiler) ── */}
-      <section className="mb-12">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold text-white">Qualifications</h2>
-          <button
-            onClick={() => setQualifsVisible(!qualifsVisible)}
-            className="text-xs font-medium text-muted hover:text-white transition-colors border border-line rounded px-2.5 py-1"
-          >
-            {qualifsVisible ? 'Masquer' : '🔒 Afficher les résultats'}
-          </button>
-        </div>
-        {qualifsVisible ? (
-          <div className="rounded-lg border border-line overflow-hidden">
-            {qualifs.map((q) => (
-              <div
-                key={q.driver_id}
-                className="flex items-center gap-4 px-4 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors"
-              >
-                <span className="w-5 text-sm font-bold text-muted tabular-nums text-right">{q.grid_position}</span>
-                <Link to={`/pilotes/${q.driver_id}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors flex-1">
-                  {q.drivers?.given_name} {q.drivers?.family_name}
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-line bg-card px-4 py-6 text-center text-sm text-subtle">
-            Les qualifications sont masquées. Cliquez pour les afficher.
-          </div>
-        )}
-      </section>
-
-      {/* ── Critiques ── */}
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-white">
-            Critiques <span className="text-subtle font-normal text-sm">({reviewCount})</span>
-          </h2>
-          {user && (
-            <button className="rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors">
-              Écrire une critique
-            </button>
+          {reviews.length > 0 ? (
+            <div className="space-y-4">
+              {reviews.map((r) => (
+                <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={user ? handleLike : undefined} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-subtle">Aucune critique pour l&apos;instant.</p>
           )}
         </div>
 
-        {!user && (
-          <div className="mb-6 rounded-lg border border-line bg-card p-4 flex items-center justify-between gap-4">
-            <p className="text-sm text-muted">Connectez-vous pour écrire une critique.</p>
-            <Link to="/login" className="text-sm font-medium text-f1-red hover:text-f1-red-hover transition-colors shrink-0">
-              Se connecter
-            </Link>
-          </div>
-        )}
-
-        {reviews.length > 0 ? (
-          <div className="space-y-4">
-            {reviews.map((r) => (
-              <ReviewCard key={r.id} review={r} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-subtle">Aucune critique pour l&apos;instant.</p>
-        )}
-      </section>
-
+      </div>
     </div>
   )
 }
