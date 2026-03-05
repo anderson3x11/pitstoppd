@@ -1,24 +1,41 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
+import { supabase } from '../lib/supabase'
 
-// Saisons disponibles (2020 → aujourd'hui)
-const SAISONS = [2024, 2023, 2022, 2021, 2020]
-
-// Données de démo
-const GPS_DEMO = [
-  { id: 1, name: 'Grand Prix d\'Abu Dhabi', season: 2024, slug: 'abu-dhabi', country: 'Émirats Arabes Unis', circuit: 'Yas Marina', date: '2024-12-08', posterUrl: null, avgRating: 3.5, reviewCount: 412 },
-  { id: 2, name: 'Grand Prix de Las Vegas', season: 2024, slug: 'las-vegas', country: 'États-Unis', circuit: 'Las Vegas Strip Circuit', date: '2024-11-23', posterUrl: null, avgRating: 4.0, reviewCount: 638 },
-  { id: 3, name: 'Grand Prix du Brésil', season: 2024, slug: 'bresil', country: 'Brésil', circuit: 'Interlagos', date: '2024-11-03', posterUrl: null, avgRating: 4.5, reviewCount: 891 },
-  { id: 4, name: 'Grand Prix du Mexique', season: 2024, slug: 'mexique', country: 'Mexique', circuit: 'Autodromo Hermanos Rodriguez', date: '2024-10-27', posterUrl: null, avgRating: 3.0, reviewCount: 327 },
-  { id: 5, name: 'Grand Prix des États-Unis', season: 2024, slug: 'etats-unis', country: 'États-Unis', circuit: 'Circuit of the Americas', date: '2024-10-20', posterUrl: null, avgRating: 4.2, reviewCount: 556 },
-  { id: 6, name: 'Grand Prix de Singapour', season: 2024, slug: 'singapour', country: 'Singapour', circuit: 'Marina Bay Street Circuit', date: '2024-09-22', posterUrl: null, avgRating: 4.8, reviewCount: 1024 },
-]
+const SAISONS = [2025, 2024, 2023, 2022, 2021, 2020]
+const TODAY = new Date().toISOString().split('T')[0]
 
 export default function GrandsPrix() {
-  const [saisonActive, setSaisonActive] = useState(2024)
+  const [saisonActive, setSaisonActive] = useState(2025)
+  const [gps, setGps] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const gpsFiltres = GPS_DEMO.filter((gp) => gp.season === saisonActive)
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+
+    supabase
+      .from('races')
+      .select('id, season, round, name, slug, circuit, country, date, poster_url')
+      .eq('season', saisonActive)
+      .lt('date', TODAY)
+      .order('date', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) setError(error.message)
+        else setGps(data ?? [])
+        setLoading(false)
+      })
+  }, [saisonActive])
+
+  // Adapter les noms de colonnes Supabase → props GPCard
+  const gpCards = gps.map((gp) => ({
+    ...gp,
+    posterUrl: gp.poster_url,
+    avgRating: null,
+    reviewCount: null,
+  }))
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -27,7 +44,7 @@ export default function GrandsPrix() {
       <div className="mb-8">
         <h1 className="text-2xl font-black text-white">Grands Prix</h1>
         <p className="text-sm text-muted mt-1">
-          {GPS_DEMO.length} courses · saisons 2020 à 2024
+          {loading ? 'Chargement…' : `${gps.length} courses · saison ${saisonActive}`}
         </p>
       </div>
 
@@ -37,7 +54,7 @@ export default function GrandsPrix() {
           <button
             key={s}
             onClick={() => setSaisonActive(s)}
-            className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`cursor-pointer rounded px-3 py-1.5 text-sm font-medium transition-colors ${
               saisonActive === s
                 ? 'bg-f1-red text-white'
                 : 'bg-card border border-line text-muted hover:text-white hover:border-subtle'
@@ -58,10 +75,18 @@ export default function GrandsPrix() {
         </Link>
       </div>
 
-      {/* Grille de GPs */}
-      {gpsFiltres.length > 0 ? (
+      {/* Contenu */}
+      {error ? (
+        <div className="text-center py-20 text-muted">
+          <p>Erreur : {error}</p>
+        </div>
+      ) : loading ? (
+        <div className="text-center py-20 text-muted">
+          <p>Chargement…</p>
+        </div>
+      ) : gpCards.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {gpsFiltres.map((gp) => (
+          {gpCards.map((gp) => (
             <GPCard key={gp.id} gp={gp} />
           ))}
         </div>
