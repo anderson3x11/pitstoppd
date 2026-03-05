@@ -1,49 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import StarRating from '../components/StarRating'
-
-// Données de démo — seront remplacées par l'API Phase 3/4
-const GP_DEMO = {
-  name: 'Grand Prix de Singapour',
-  season: 2024,
-  date: '2024-09-22',
-  circuit: 'Marina Bay Street Circuit',
-  country: 'Singapour',
-  posterUrl: null,
-  avgRating: 4.8,
-  reviewCount: 1024,
-  classement: [
-    { position: 1, driver: 'Lando Norris', team: 'McLaren', id: 'norris' },
-    { position: 2, driver: 'Max Verstappen', team: 'Red Bull Racing', id: 'verstappen' },
-    { position: 3, driver: 'Oscar Piastri', team: 'McLaren', id: 'piastri' },
-    { position: 4, driver: 'Carlos Sainz', team: 'Ferrari', id: 'sainz' },
-    { position: 5, driver: 'Charles Leclerc', team: 'Ferrari', id: 'leclerc' },
-  ],
-  qualifs: [
-    { position: 1, driver: 'Lando Norris', team: 'McLaren', id: 'norris', time: '1:29.525' },
-    { position: 2, driver: 'Max Verstappen', team: 'Red Bull Racing', id: 'verstappen', time: '+0.121' },
-    { position: 3, driver: 'Oscar Piastri', team: 'McLaren', id: 'piastri', time: '+0.543' },
-  ],
-  pilotes: [
-    { id: 'norris', name: 'Lando Norris', team: 'McLaren' },
-    { id: 'verstappen', name: 'Max Verstappen', team: 'Red Bull Racing' },
-    { id: 'piastri', name: 'Oscar Piastri', team: 'McLaren' },
-    { id: 'sainz', name: 'Carlos Sainz', team: 'Ferrari' },
-    { id: 'leclerc', name: 'Charles Leclerc', team: 'Ferrari' },
-  ],
-}
-
-const REVIEWS_DEMO = [
-  { id: 1, author: 'maxfan44', rating: 5.0, content: 'Course incroyable, Norris a parfaitement géré la pression. Le circuit de Marina Bay offre toujours du spectacle.', spoiler: false, likes: 87, createdAt: '2024-09-23' },
-  { id: 2, author: 'scuderiafan', rating: 4.0, content: 'Bonne course dans l\'ensemble mais Ferrari a encore raté la stratégie...', spoiler: true, likes: 42, createdAt: '2024-09-23' },
-]
+import { supabase } from '../lib/supabase'
 
 const isLoggedIn = false
 
 function ReviewCard({ review }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
 
-  const formattedDate = new Date(review.createdAt).toLocaleDateString('fr-FR', {
+  const formattedDate = new Date(review.created_at).toLocaleDateString('fr-FR', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
 
@@ -51,13 +16,13 @@ function ReviewCard({ review }) {
     <div className="rounded-lg border border-line bg-card p-4 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link to={`/${review.author}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors">
-            {review.author}
+          <Link to={`/${review.username}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors">
+            {review.username}
           </Link>
           <span className="text-subtle text-xs">·</span>
           <span className="text-xs text-subtle">{formattedDate}</span>
         </div>
-        <StarRating value={review.rating} size="sm" />
+        {review.rating != null && <StarRating value={review.rating} size="sm" />}
       </div>
 
       {review.spoiler && !spoilerVisible ? (
@@ -77,7 +42,7 @@ function ReviewCard({ review }) {
       <div className="flex items-center gap-4 pt-1">
         <button className="flex items-center gap-1.5 text-xs text-subtle hover:text-white transition-colors">
           <span>♡</span>
-          <span>{review.likes}</span>
+          <span>{review.likes ?? 0}</span>
         </button>
         {review.spoiler && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-card-hover border border-line text-subtle uppercase tracking-wide">
@@ -93,12 +58,117 @@ export default function GrandPrix() {
   const { saison, slug } = useParams()
   const [classementVisible, setClassementVisible] = useState(false)
   const [qualifsVisible, setQualifsVisible] = useState(false)
+  const [race, setRace] = useState(null)
+  const [raceDrivers, setRaceDrivers] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [avgRating, setAvgRating] = useState(null)
+  const [reviewCount, setReviewCount] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  const gp = GP_DEMO // TODO: charger depuis l'API
+  useEffect(() => {
+    setLoading(true)
 
-  const formattedDate = new Date(gp.date).toLocaleDateString('fr-FR', {
+    async function load() {
+      // 1. Fetch race
+      const { data: raceData } = await supabase
+        .from('races')
+        .select('*')
+        .eq('season', parseInt(saison))
+        .eq('slug', slug)
+        .single()
+
+      if (!raceData) {
+        setLoading(false)
+        return
+      }
+      setRace(raceData)
+
+      // 2. Fetch race_drivers with driver info
+      const { data: rdData } = await supabase
+        .from('race_drivers')
+        .select('position, grid_position, status, driver_id, drivers(id, given_name, family_name)')
+        .eq('race_id', raceData.id)
+
+      setRaceDrivers(rdData ?? [])
+
+      // 3. Fetch ratings to compute average
+      const { data: ratingsData } = await supabase
+        .from('ratings')
+        .select('score')
+        .eq('race_id', raceData.id)
+
+      if (ratingsData && ratingsData.length > 0) {
+        const avg = ratingsData.reduce((sum, r) => sum + r.score, 0) / ratingsData.length
+        setAvgRating(Math.round(avg * 10) / 10)
+      }
+
+      // 4. Fetch reviews
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select('id, content, spoiler, created_at, user_id')
+        .eq('race_id', raceData.id)
+        .order('created_at', { ascending: false })
+
+      setReviewCount(reviewsData?.length ?? 0)
+
+      if (reviewsData && reviewsData.length > 0) {
+        const userIds = [...new Set(reviewsData.map((r) => r.user_id))]
+
+        const [{ data: profilesData }, { data: userRatings }] = await Promise.all([
+          supabase.from('profiles').select('id, username').in('id', userIds),
+          supabase.from('ratings').select('user_id, score').eq('race_id', raceData.id).in('user_id', userIds),
+        ])
+
+        const profileMap = {}
+        for (const p of profilesData ?? []) profileMap[p.id] = p.username
+
+        const ratingMap = {}
+        for (const r of userRatings ?? []) ratingMap[r.user_id] = r.score
+
+        setReviews(
+          reviewsData.map((r) => ({
+            ...r,
+            username: profileMap[r.user_id] ?? 'Anonyme',
+            rating: ratingMap[r.user_id] ?? null,
+          }))
+        )
+      }
+
+      setLoading(false)
+    }
+
+    load()
+  }, [saison, slug])
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10">
+        <p className="text-muted text-sm">Chargement…</p>
+      </div>
+    )
+  }
+
+  if (!race) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10">
+        <p className="text-muted text-sm">Grand Prix introuvable.</p>
+      </div>
+    )
+  }
+
+  const formattedDate = new Date(race.date).toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
+
+  const classement = [...raceDrivers]
+    .filter((rd) => rd.position != null)
+    .sort((a, b) => a.position - b.position)
+
+  const qualifs = [...raceDrivers]
+    .filter((rd) => rd.grid_position != null)
+    .sort((a, b) => a.grid_position - b.grid_position)
+
+  const pilotes = raceDrivers.map((rd) => rd.drivers).filter(Boolean)
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -107,9 +177,13 @@ export default function GrandPrix() {
       <div className="flex gap-6 mb-10">
         {/* Poster */}
         <div className="hidden sm:block w-36 shrink-0 rounded-lg overflow-hidden border border-line aspect-[2/3] bg-card-hover">
-          <div className="h-full w-full flex items-center justify-center">
-            <span className="text-3xl">🏁</span>
-          </div>
+          {race.poster_url ? (
+            <img src={race.poster_url} alt={race.name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center">
+              <span className="text-3xl">🏁</span>
+            </div>
+          )}
         </div>
 
         {/* Infos principales */}
@@ -119,23 +193,24 @@ export default function GrandPrix() {
             <span>/</span>
             <Link to={`/saisons/${saison}`} className="hover:text-white transition-colors">{saison}</Link>
           </div>
-          <h1 className="text-3xl font-black text-white">{gp.name}</h1>
+          <h1 className="text-3xl font-black text-white">{race.name}</h1>
           <p className="text-sm text-muted capitalize">{formattedDate}</p>
-          <p className="text-sm text-muted">{gp.circuit} · {gp.country}</p>
+          <p className="text-sm text-muted">{race.circuit} · {race.country}</p>
 
           {/* Note globale */}
           <div className="flex items-center gap-3 pt-2">
-            <StarRating value={gp.avgRating} size="lg" showValue />
-            <span className="text-sm text-subtle">{gp.reviewCount} critiques</span>
+            {avgRating != null ? (
+              <>
+                <StarRating value={avgRating} size="lg" showValue />
+                <span className="text-sm text-subtle">{reviewCount} critique{reviewCount !== 1 ? 's' : ''}</span>
+              </>
+            ) : (
+              <span className="text-sm text-subtle">Aucune note pour l&apos;instant</span>
+            )}
           </div>
 
           {/* Action noter */}
-          {isLoggedIn ? (
-            <div className="pt-2">
-              <p className="text-xs text-subtle mb-1">Votre note :</p>
-              <StarRating value={0} size="lg" />
-            </div>
-          ) : (
+          {!isLoggedIn && (
             <div className="pt-2">
               <Link to="/login" className="text-sm text-muted hover:text-white transition-colors">
                 Connectez-vous pour noter ce GP
@@ -146,20 +221,22 @@ export default function GrandPrix() {
       </div>
 
       {/* ── Pilotes ayant participé ── */}
-      <section className="mb-8">
-        <h2 className="text-base font-bold mb-3 text-white">Pilotes</h2>
-        <div className="flex flex-wrap gap-2">
-          {gp.pilotes.map((p) => (
-            <Link
-              key={p.id}
-              to={`/pilotes/${p.id}`}
-              className="rounded border border-line bg-card px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-subtle transition-colors"
-            >
-              {p.name}
-            </Link>
-          ))}
-        </div>
-      </section>
+      {pilotes.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-base font-bold mb-3 text-white">Pilotes</h2>
+          <div className="flex flex-wrap gap-2">
+            {pilotes.map((p) => (
+              <Link
+                key={p.id}
+                to={`/pilotes/${p.id}`}
+                className="rounded border border-line bg-card px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-subtle transition-colors"
+              >
+                {p.given_name} {p.family_name}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Classement (spoiler) ── */}
       <section className="mb-8">
@@ -174,16 +251,18 @@ export default function GrandPrix() {
         </div>
         {classementVisible ? (
           <div className="rounded-lg border border-line overflow-hidden">
-            {gp.classement.map((r) => (
+            {classement.map((r) => (
               <div
-                key={r.position}
+                key={r.driver_id}
                 className="flex items-center gap-4 px-4 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors"
               >
                 <span className="w-5 text-sm font-bold text-muted tabular-nums text-right">{r.position}</span>
-                <Link to={`/pilotes/${r.id}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors flex-1">
-                  {r.driver}
+                <Link to={`/pilotes/${r.driver_id}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors flex-1">
+                  {r.drivers?.given_name} {r.drivers?.family_name}
                 </Link>
-                <span className="text-xs text-subtle">{r.team}</span>
+                {r.status && r.status !== 'Finished' && (
+                  <span className="text-xs text-subtle">{r.status}</span>
+                )}
               </div>
             ))}
           </div>
@@ -207,17 +286,15 @@ export default function GrandPrix() {
         </div>
         {qualifsVisible ? (
           <div className="rounded-lg border border-line overflow-hidden">
-            {gp.qualifs.map((q) => (
+            {qualifs.map((q) => (
               <div
-                key={q.position}
+                key={q.driver_id}
                 className="flex items-center gap-4 px-4 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors"
               >
-                <span className="w-5 text-sm font-bold text-muted tabular-nums text-right">{q.position}</span>
-                <Link to={`/pilotes/${q.id}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors flex-1">
-                  {q.driver}
+                <span className="w-5 text-sm font-bold text-muted tabular-nums text-right">{q.grid_position}</span>
+                <Link to={`/pilotes/${q.driver_id}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors flex-1">
+                  {q.drivers?.given_name} {q.drivers?.family_name}
                 </Link>
-                <span className="text-xs text-subtle">{q.team}</span>
-                <span className="text-xs text-muted font-mono">{q.time}</span>
               </div>
             ))}
           </div>
@@ -232,7 +309,7 @@ export default function GrandPrix() {
       <section>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-white">
-            Critiques <span className="text-subtle font-normal text-sm">({gp.reviewCount})</span>
+            Critiques <span className="text-subtle font-normal text-sm">({reviewCount})</span>
           </h2>
           {isLoggedIn && (
             <button className="rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors">
@@ -250,11 +327,15 @@ export default function GrandPrix() {
           </div>
         )}
 
-        <div className="space-y-4">
-          {REVIEWS_DEMO.map((r) => (
-            <ReviewCard key={r.id} review={r} />
-          ))}
-        </div>
+        {reviews.length > 0 ? (
+          <div className="space-y-4">
+            {reviews.map((r) => (
+              <ReviewCard key={r.id} review={r} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-subtle">Aucune critique pour l&apos;instant.</p>
+        )}
       </section>
 
     </div>

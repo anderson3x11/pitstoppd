@@ -108,6 +108,7 @@ async function seedSeason(season) {
         family_name: d.familyName,
         nationality: d.nationality,
         date_of_birth: d.dateOfBirth ?? null,
+        number: parseInt(d.permanentNumber) || null,
       }
 
       raceDriverRows.push({
