@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 export default function Footer() {
   return (
     <footer className="border-t border-line mt-16">
-      <div className="mx-auto max-w-7xl px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="mx-auto max-w-4xl px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <Link to="/" className="text-sm font-black tracking-widest text-f1-red uppercase">
           PITSTOPPD
         </Link>

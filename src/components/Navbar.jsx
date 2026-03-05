@@ -1,34 +1,43 @@
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink } from "react-router-dom";
 
 const navLinkClass = ({ isActive }) =>
   `text-sm font-medium transition-colors duration-150 ${
-    isActive ? 'text-white' : 'text-muted hover:text-white'
-  }`
+    isActive ? "text-white" : "text-muted hover:text-white"
+  }`;
 
 // TODO Phase 5 : remplacer isLoggedIn par le vrai contexte auth
-const isLoggedIn = false
-const currentUser = null
+const isLoggedIn = false;
+const currentUser = null;
 
 export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-card/80 backdrop-blur-md">
-      <nav className="mx-auto flex h-14 max-w-7xl items-center px-4">
-
+      <nav className="mx-auto flex h-14 max-w-4xl items-center px-4">
         {/* Logo — occupe 1/3 gauche */}
         <div className="flex-1">
-          <Link
-            to="/"
-            className="text-lg font-black tracking-widest text-f1-red uppercase select-none"
-          >
-            PITSTOPPD
+          <Link to="/" className="flex items-center gap-2 select-none w-fit">
+            <img
+              src="/pitstoppd-logo.svg"
+              alt="Pitstoppd"
+              className="h-5 w-auto"
+            />
+            <span className="text-lg font-black tracking-normal text-f1-red">
+              Pitstoppd
+            </span>
           </Link>
         </div>
 
         {/* Liens de navigation — centrés */}
         <div className="flex items-center gap-6">
-          <NavLink to="/gps" className={navLinkClass}>GPs</NavLink>
-          <NavLink to="/pilotes" className={navLinkClass}>Pilotes</NavLink>
-          <NavLink to="/saisons" className={navLinkClass}>Saisons</NavLink>
+          <NavLink to="/gps" className={navLinkClass}>
+            Grands Prix
+          </NavLink>
+          <NavLink to="/pilotes" className={navLinkClass}>
+            Pilotes
+          </NavLink>
+          <NavLink to="/saisons" className={navLinkClass}>
+            Saisons
+          </NavLink>
         </div>
 
         {/* Auth — occupe 1/3 droit */}
@@ -40,7 +49,11 @@ export default function Navbar() {
             >
               <div className="h-7 w-7 rounded-full bg-card-hover border border-line overflow-hidden">
                 {currentUser.avatarUrl ? (
-                  <img src={currentUser.avatarUrl} alt={currentUser.username} className="h-full w-full object-cover" />
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.username}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center text-xs text-subtle">
                     {currentUser.username[0].toUpperCase()}
@@ -66,8 +79,7 @@ export default function Navbar() {
             </>
           )}
         </div>
-
       </nav>
     </header>
-  )
+  );
 }

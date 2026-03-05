@@ -21,7 +21,7 @@ export default function GrandsPrix() {
   const gpsFiltres = GPS_DEMO.filter((gp) => gp.season === saisonActive)
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <div className="mx-auto max-w-4xl px-4 py-10">
 
       {/* En-tête */}
       <div className="mb-8">
@@ -60,7 +60,7 @@ export default function GrandsPrix() {
 
       {/* Grille de GPs */}
       {gpsFiltres.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {gpsFiltres.map((gp) => (
             <GPCard key={gp.id} gp={gp} />
           ))}
