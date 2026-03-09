@@ -21,7 +21,7 @@ export default function Login() {
       password: form.password,
     })
     if (authError) {
-      setError('E-mail ou mot de passe incorrect.')
+      setError('Invalid email or password.')
       setLoading(false)
     } else {
       navigate('/')
@@ -37,10 +37,10 @@ export default function Login() {
           <Link to="/" className="text-xl font-black tracking-widest text-f1-red uppercase">
             PITSTOPPD
           </Link>
-          <p className="mt-2 text-sm text-muted">Connectez-vous à votre compte</p>
+          <p className="mt-2 text-sm text-muted">Sign in to your account</p>
         </div>
 
-        {/* Formulaire */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3">
@@ -50,7 +50,7 @@ export default function Login() {
 
           <div className="space-y-1">
             <label htmlFor="email" className="block text-xs font-medium text-muted">
-              Adresse e-mail
+              Email address
             </label>
             <input
               id="email"
@@ -60,14 +60,14 @@ export default function Login() {
               required
               value={form.email}
               onChange={handleChange}
-              placeholder="vous@example.com"
+              placeholder="you@example.com"
               className="w-full rounded-lg border border-line bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-f1-red transition-colors"
             />
           </div>
 
           <div className="space-y-1">
             <label htmlFor="password" className="block text-xs font-medium text-muted">
-              Mot de passe
+              Password
             </label>
             <input
               id="password"
@@ -87,14 +87,14 @@ export default function Login() {
             disabled={loading}
             className="w-full rounded-lg bg-f1-red py-2.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? 'Connexion…' : 'Se connecter'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
         <p className="text-center text-sm text-muted">
-          Pas encore de compte ?{' '}
+          Don't have an account?{' '}
           <Link to="/register" className="font-semibold text-white hover:text-f1-red transition-colors">
-            S&apos;inscrire
+            Sign up
           </Link>
         </p>
 

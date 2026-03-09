@@ -10,7 +10,7 @@ const TODAY = new Date().toISOString().split('T')[0]
 function FeedCard({ review }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
 
-  const formattedDate = new Date(review.created_at).toLocaleDateString('fr-FR', {
+  const formattedDate = new Date(review.created_at).toLocaleDateString('en-US', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
 
@@ -33,12 +33,12 @@ function FeedCard({ review }) {
 
       {review.spoiler && !spoilerVisible ? (
         <div className="rounded bg-card-hover border border-line px-3 py-2 text-center">
-          <p className="text-xs text-subtle mb-1">Contient des spoilers</p>
+          <p className="text-xs text-subtle mb-1">Contains spoilers</p>
           <button
             onClick={() => setSpoilerVisible(true)}
             className="text-xs font-medium text-muted hover:text-white transition-colors"
           >
-            Afficher quand même
+            Show anyway
           </button>
         </div>
       ) : (
@@ -130,9 +130,9 @@ export default function Home() {
 
   return (
     <div>
-      {/* ── Hero : dernier GP en vedette ── */}
+      {/* ── Hero: latest GP featured ── */}
       <section className="relative border-b border-line">
-        {/* Fond CSS */}
+        {/* CSS background */}
         <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)' }} />
         <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
@@ -153,10 +153,10 @@ export default function Home() {
           <div className="space-y-3 pb-1">
             <div className="flex items-center gap-2">
               <span className="block w-6 h-px bg-f1-red" />
-              <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">Dernier Grand Prix</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">Latest Grand Prix</p>
             </div>
             {loading ? (
-              <p className="text-muted text-sm">Chargement…</p>
+              <p className="text-muted text-sm">Loading…</p>
             ) : latestGP ? (
               <>
                 <h1 className="text-4xl font-black text-white leading-tight">{latestGP.name}</h1>
@@ -170,12 +170,12 @@ export default function Home() {
                     to={`/gps/${latestGP.season}/${latestGP.slug}`}
                     className="inline-flex items-center gap-1.5 rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
                   >
-                    Voir le Grand Prix →
+                    View Grand Prix →
                   </Link>
                 </div>
               </>
             ) : (
-              <p className="text-muted text-sm">Aucun Grand Prix disponible.</p>
+              <p className="text-muted text-sm">No Grand Prix available.</p>
             )}
           </div>
         </div>
@@ -183,48 +183,48 @@ export default function Home() {
 
       <div className="mx-auto max-w-4xl px-4 py-12 space-y-14">
 
-        {/* ── Critiques de vos amis ── */}
+        {/* ── Friends' Reviews ── */}
         <section>
-          <h2 className="text-lg font-bold mb-4">Critiques de vos amis</h2>
+          <h2 className="text-lg font-bold mb-4">Friends' Reviews</h2>
           {user ? (
             feedLoading ? (
-              <p className="text-muted text-sm">Chargement…</p>
+              <p className="text-muted text-sm">Loading…</p>
             ) : feedReviews.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {feedReviews.map((r) => <FeedCard key={r.id} review={r} />)}
               </div>
             ) : (
               <div className="rounded-lg border border-line bg-card p-6 text-center space-y-2">
-                <p className="text-sm text-muted">Aucune critique récente.</p>
-                <p className="text-xs text-subtle">Suivez des utilisateurs pour voir leurs critiques ici.</p>
+                <p className="text-sm text-muted">No recent reviews.</p>
+                <p className="text-xs text-subtle">Follow users to see their reviews here.</p>
               </div>
             )
           ) : (
             <div className="rounded-lg border border-line bg-card p-8 text-center space-y-3">
-              <p className="text-white font-semibold">Rejoignez la communauté</p>
+              <p className="text-white font-semibold">Join the community</p>
               <p className="text-sm text-muted max-w-sm mx-auto">
-                Connectez-vous pour voir les notes et critiques des utilisateurs que vous suivez.
+                Sign in to see ratings and reviews from users you follow.
               </p>
               <div className="flex items-center justify-center gap-3 pt-2">
                 <Link to="/register" className="rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors">
-                  Créer un compte
+                  Create account
                 </Link>
                 <Link to="/login" className="text-sm font-medium text-muted hover:text-white transition-colors">
-                  Se connecter
+                  Sign in
                 </Link>
               </div>
             </div>
           )}
         </section>
 
-        {/* ── Derniers Grands Prix ── */}
+        {/* ── Latest Grand Prix ── */}
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold">Derniers Grands Prix</h2>
-            <Link to="/gps" className="text-sm text-muted hover:text-white transition-colors">Voir tout →</Link>
+            <h2 className="text-lg font-bold">Latest Grand Prix</h2>
+            <Link to="/gps" className="text-sm text-muted hover:text-white transition-colors">View all →</Link>
           </div>
           {loading ? (
-            <p className="text-muted text-sm">Chargement…</p>
+            <p className="text-muted text-sm">Loading…</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {gpCards.map((gp) => <GPCard key={gp.id} gp={gp} />)}

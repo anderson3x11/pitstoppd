@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Lancer avec : node --env-file=.env.local scripts/seed.js
-// Nécessite VITE_SUPABASE_URL et SUPABASE_SECRET_KEY dans .env.local
+// Run: node --env-file=.env.local scripts/seed.js
+// Requires VITE_SUPABASE_URL and SUPABASE_SECRET_KEY in .env.local
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY
 
 if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
-  console.error('Manque VITE_SUPABASE_URL ou SUPABASE_SECRET_KEY dans .env.local')
+  console.error('Missing VITE_SUPABASE_URL or SUPABASE_SECRET_KEY in .env.local')
   process.exit(1)
 }
 
@@ -24,7 +24,7 @@ async function fetchJson(url) {
   return res.json()
 }
 
-// Récupère toutes les pages d'un endpoint paginé (limit 100 max par Jolpica)
+// Fetches all pages of a paginated endpoint (max 100 per request on Jolpica)
 async function fetchAllPages(path) {
   const limit = 100
   let offset = 0
@@ -48,21 +48,21 @@ function toSlug(circuitId) {
   return circuitId.replace(/_/g, '-')
 }
 
-// positionText est un entier ("1".."20") pour les pilotes classés,
-// sinon "R" (Retired), "D" (DSQ), "N" (Non classé), etc.
+// positionText is an integer ("1".."20") for classified drivers,
+// otherwise "R" (Retired), "D" (DSQ), "N" (Not classified), etc.
 function parsePosition(positionText, position) {
   return /^\d+$/.test(positionText) ? parseInt(position) : null
 }
 
 async function seedSeason(season) {
-  console.log(`\n=== Saison ${season} ===`)
+  console.log(`\n=== Season ${season} ===`)
 
-  // 1. Calendrier
+  // 1. Schedule
   const scheduleData = await fetchJson(`${BASE}/${season}.json`)
   const races = scheduleData.MRData.RaceTable.Races
 
   if (races.length === 0) {
-    console.log(`  Aucune course trouvée — saison ignorée`)
+    console.log(`  No races found — season skipped`)
     return { driversMap: {}, raceDriverRows: [] }
   }
 
@@ -82,14 +82,14 @@ async function seedSeason(season) {
     .select('id, round')
 
   if (racesError) throw racesError
-  console.log(`  ${insertedRaces.length} courses insérées`)
+  console.log(`  ${insertedRaces.length} races inserted`)
 
   // round → uuid
   const raceMap = Object.fromEntries(insertedRaces.map((r) => [r.round, r.id]))
 
   await sleep(500)
 
-  // 2. Résultats (grid + position + status) — paginé
+  // 2. Results (grid + position + status) — paginated
   const raceResults = await fetchAllPages(`${season}/results.json`)
 
   const driversMap = {}
@@ -121,7 +121,7 @@ async function seedSeason(season) {
     }
   }
 
-  console.log(`  ${raceDriverRows.length} participations collectées`)
+  console.log(`  ${raceDriverRows.length} entries collected`)
 
   await sleep(500)
 
@@ -148,15 +148,15 @@ async function main() {
   }
 
   const driverRows = Object.values(allDrivers)
-  console.log(`\nPilotes uniques : ${driverRows.length}`)
+  console.log(`\nUnique drivers: ${driverRows.length}`)
   await upsertInChunks('drivers', driverRows, 'id')
-  console.log('  Pilotes insérés')
+  console.log('  Drivers inserted')
 
-  console.log(`\nParticipations totales : ${allRaceDriverRows.length}`)
+  console.log(`\nTotal entries: ${allRaceDriverRows.length}`)
   await upsertInChunks('race_drivers', allRaceDriverRows, 'race_id,driver_id')
-  console.log('  Participations insérées')
+  console.log('  Entries inserted')
 
-  console.log('\nSeed terminé.')
+  console.log('\nSeed complete.')
 }
 
 main().catch((err) => {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-// Regex username : 3-20 caractères, minuscules, chiffres, tiret, underscore
+// Username regex: 3-20 chars, lowercase, digits, hyphen, underscore
 const USERNAME_REGEX = /^[a-z0-9_-]{3,20}$/
 
 export default function Register() {
@@ -26,13 +26,13 @@ export default function Register() {
 
   const validate = () => {
     const newErrors = {}
-    if (!form.email) newErrors.email = "L'e-mail est requis."
+    if (!form.email) newErrors.email = "Email is required."
     if (!USERNAME_REGEX.test(form.username))
-      newErrors.username = '3 à 20 caractères : lettres minuscules, chiffres, - ou _'
-    if (!form.displayName.trim()) newErrors.displayName = "Le nom d'affichage est requis."
-    if (form.password.length < 8) newErrors.password = '8 caractères minimum.'
+      newErrors.username = '3 to 20 characters: lowercase letters, digits, - or _'
+    if (!form.displayName.trim()) newErrors.displayName = "Display name is required."
+    if (form.password.length < 8) newErrors.password = '8 characters minimum.'
     if (form.password !== form.passwordConfirm)
-      newErrors.passwordConfirm = 'Les mots de passe ne correspondent pas.'
+      newErrors.passwordConfirm = 'Passwords do not match.'
     return newErrors
   }
 
@@ -54,7 +54,7 @@ export default function Register() {
       .maybeSingle()
 
     if (existing) {
-      setErrors({ username: 'Ce nom d\'utilisateur est déjà pris.' })
+      setErrors({ username: 'This username is already taken.' })
       setLoading(false)
       return
     }
@@ -77,8 +77,8 @@ export default function Register() {
     }
 
     if (data.session) {
-      // Confirmation e-mail désactivée — session immédiate
-      // Upsert profil au cas où le trigger n'inclut pas username/display_name
+      // Email confirmation disabled — immediate session
+      // Upsert profile in case trigger doesn't include username/display_name
       await supabase.from('profiles').upsert({
         id: data.user.id,
         username: form.username,
@@ -86,7 +86,7 @@ export default function Register() {
       })
       navigate('/')
     } else {
-      // Confirmation e-mail requise
+      // Email confirmation required
       setConfirmationSent(true)
       setLoading(false)
     }
@@ -102,13 +102,13 @@ export default function Register() {
       <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm text-center space-y-4">
           <p className="text-xl font-black text-f1-red">PITSTOPPD</p>
-          <p className="text-white font-semibold">Vérifiez votre e-mail</p>
+          <p className="text-white font-semibold">Check your email</p>
           <p className="text-sm text-muted">
-            Un lien de confirmation a été envoyé à <span className="text-white">{form.email}</span>.
-            Cliquez sur ce lien pour activer votre compte.
+            A confirmation link has been sent to <span className="text-white">{form.email}</span>.
+            Click the link to activate your account.
           </p>
           <Link to="/login" className="inline-block text-sm font-medium text-muted hover:text-white transition-colors">
-            Retour à la connexion
+            Back to sign in
           </Link>
         </div>
       </div>
@@ -123,7 +123,7 @@ export default function Register() {
           <Link to="/" className="text-xl font-black tracking-widest text-f1-red uppercase">
             PITSTOPPD
           </Link>
-          <p className="mt-2 text-sm text-muted">Créez votre compte</p>
+          <p className="mt-2 text-sm text-muted">Create your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -136,12 +136,12 @@ export default function Register() {
           {/* Email */}
           <div className="space-y-1">
             <label htmlFor="email" className="block text-xs font-medium text-muted">
-              Adresse e-mail
+              Email address
             </label>
             <input
               id="email" name="email" type="email" autoComplete="email" required
               value={form.email} onChange={handleChange}
-              placeholder="vous@example.com"
+              placeholder="you@example.com"
               className={inputClass('email')}
             />
             {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
@@ -150,8 +150,8 @@ export default function Register() {
           {/* Username */}
           <div className="space-y-1">
             <label htmlFor="username" className="block text-xs font-medium text-muted">
-              Nom d&apos;utilisateur
-              <span className="ml-1 text-subtle font-normal">(unique, utilisé dans l&apos;URL)</span>
+              Username
+              <span className="ml-1 text-subtle font-normal">(unique, used in URL)</span>
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle text-sm">@</span>
@@ -165,11 +165,11 @@ export default function Register() {
             {errors.username && <p className="text-xs text-red-400">{errors.username}</p>}
           </div>
 
-          {/* Nom d'affichage */}
+          {/* Display Name */}
           <div className="space-y-1">
             <label htmlFor="displayName" className="block text-xs font-medium text-muted">
-              Nom d&apos;affichage
-              <span className="ml-1 text-subtle font-normal">(non unique)</span>
+              Display Name
+              <span className="ml-1 text-subtle font-normal">(not unique)</span>
             </label>
             <input
               id="displayName" name="displayName" type="text" required
@@ -180,24 +180,24 @@ export default function Register() {
             {errors.displayName && <p className="text-xs text-red-400">{errors.displayName}</p>}
           </div>
 
-          {/* Mot de passe */}
+          {/* Password */}
           <div className="space-y-1">
             <label htmlFor="password" className="block text-xs font-medium text-muted">
-              Mot de passe
+              Password
             </label>
             <input
               id="password" name="password" type="password" autoComplete="new-password" required
               value={form.password} onChange={handleChange}
-              placeholder="8 caractères minimum"
+              placeholder="8 characters minimum"
               className={inputClass('password')}
             />
             {errors.password && <p className="text-xs text-red-400">{errors.password}</p>}
           </div>
 
-          {/* Confirmation */}
+          {/* Confirm password */}
           <div className="space-y-1">
             <label htmlFor="passwordConfirm" className="block text-xs font-medium text-muted">
-              Confirmer le mot de passe
+              Confirm password
             </label>
             <input
               id="passwordConfirm" name="passwordConfirm" type="password" autoComplete="new-password" required
@@ -213,14 +213,14 @@ export default function Register() {
             disabled={loading}
             className="w-full rounded-lg bg-f1-red py-2.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? 'Création du compte…' : 'Créer mon compte'}
+            {loading ? 'Creating account…' : 'Create my account'}
           </button>
         </form>
 
         <p className="text-center text-sm text-muted">
-          Déjà un compte ?{' '}
+          Already have an account?{' '}
           <Link to="/login" className="font-semibold text-white hover:text-f1-red transition-colors">
-            Se connecter
+            Sign in
           </Link>
         </p>
 

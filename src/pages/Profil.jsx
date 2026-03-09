@@ -24,9 +24,9 @@ function ReviewCard({ review }) {
 
       {review.spoiler && !spoilerVisible ? (
         <div className="rounded bg-card-hover border border-line px-3 py-2 text-center">
-          <p className="text-xs text-subtle mb-1">Contient des spoilers</p>
+          <p className="text-xs text-subtle mb-1">Contains spoilers</p>
           <button onClick={() => setSpoilerVisible(true)} className="text-xs font-medium text-muted hover:text-white transition-colors">
-            Afficher quand même
+            Show anyway
           </button>
         </div>
       ) : (
@@ -165,7 +165,7 @@ export default function Profil() {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10">
-        <p className="text-muted text-sm">Chargement…</p>
+        <p className="text-muted text-sm">Loading…</p>
       </div>
     )
   }
@@ -173,7 +173,7 @@ export default function Profil() {
   if (!profil) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10">
-        <p className="text-muted text-sm">Utilisateur introuvable.</p>
+        <p className="text-muted text-sm">User not found.</p>
       </div>
     )
   }
@@ -181,7 +181,7 @@ export default function Profil() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
 
-      {/* ── En-tête profil ── */}
+      {/* ── Profile header ── */}
       <div className="flex gap-5 mb-10 pb-8 border-b border-line">
         {/* Avatar */}
         <div className="w-20 h-20 rounded-full bg-card-hover border border-line flex items-center justify-center overflow-hidden shrink-0">
@@ -206,7 +206,7 @@ export default function Profil() {
                 to="/settings"
                 className="text-xs font-medium border border-line rounded px-3 py-1.5 text-muted hover:text-white hover:border-subtle transition-colors"
               >
-                Modifier le profil
+                Edit profile
               </Link>
             ) : user ? (
               <button
@@ -218,14 +218,14 @@ export default function Profil() {
                     : 'bg-f1-red text-white hover:bg-f1-red-hover'
                 }`}
               >
-                {isFollowing ? 'Suivi' : 'Suivre'}
+                {isFollowing ? 'Following' : 'Follow'}
               </button>
             ) : (
               <Link
                 to="/login"
                 className="text-xs font-semibold bg-f1-red rounded px-4 py-1.5 text-white hover:bg-f1-red-hover transition-colors"
               >
-                Suivre
+                Follow
               </Link>
             )}
           </div>
@@ -237,10 +237,10 @@ export default function Profil() {
           {/* Stats */}
           <div className="flex items-center gap-5 mt-4">
             {[
-              { label: 'Notes', value: stats.notes },
-              { label: 'Critiques', value: stats.critiques },
-              { label: 'Abonnés', value: stats.abonnes },
-              { label: 'Abonnements', value: stats.abonnements },
+              { label: 'Ratings', value: stats.notes },
+              { label: 'Reviews', value: stats.critiques },
+              { label: 'Followers', value: stats.abonnes },
+              { label: 'Following', value: stats.abonnements },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <p className="text-sm font-bold text-white">{stat.value}</p>
@@ -251,14 +251,14 @@ export default function Profil() {
         </div>
       </div>
 
-      {/* ── Favoris ── */}
+      {/* ── Favorites ── */}
       {(profil.favorite_team || topPilotes.length > 0) && (
         <section className="mb-10">
           <div className="grid sm:grid-cols-2 gap-6">
             {profil.favorite_team && (
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">
-                  Écurie favorite
+                  Favorite Team
                 </h3>
                 <div className="rounded-lg border border-line bg-card px-4 py-3">
                   <p className="text-sm font-semibold text-white">{profil.favorite_team}</p>
@@ -268,7 +268,7 @@ export default function Profil() {
             {topPilotes.length > 0 && (
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">
-                  Top 3 pilotes
+                  Top 3 Drivers
                 </h3>
                 <div className="space-y-2">
                   {topPilotes.map((p, i) => (
@@ -290,9 +290,9 @@ export default function Profil() {
         </section>
       )}
 
-      {/* ── Dernières critiques ── */}
+      {/* ── Latest Reviews ── */}
       <section>
-        <h2 className="text-base font-bold text-white mb-4">Dernières critiques</h2>
+        <h2 className="text-base font-bold text-white mb-4">Latest Reviews</h2>
         {dernieresReviews.length > 0 ? (
           <div className="space-y-3">
             {dernieresReviews.map((review) => (
@@ -300,7 +300,7 @@ export default function Profil() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-subtle">Aucune critique pour l&apos;instant.</p>
+          <p className="text-sm text-subtle">No reviews yet.</p>
         )}
       </section>
 

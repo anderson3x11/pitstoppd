@@ -36,20 +36,20 @@ export default function Saison() {
       <div className="mb-8">
         <div className="flex items-center gap-2 text-xs text-muted mb-2">
           <Link to="/saisons" className="hover:text-white transition-colors">
-            Saisons
+            Seasons
           </Link>
           <span>/</span>
           <span>{annee}</span>
         </div>
-        <h1 className="text-2xl font-black text-white">Saison {annee}</h1>
+        <h1 className="text-2xl font-black text-white">Season {annee}</h1>
         <p className="text-sm text-muted mt-1">
-          {loading ? 'Chargement…' : `${gps.length} Grands Prix`}
+          {loading ? 'Loading…' : `${gps.length} Grands Prix`}
         </p>
       </div>
 
-      {/* Grille GPs */}
+      {/* GP grid */}
       {loading ? (
-        <p className="text-muted text-sm">Chargement…</p>
+        <p className="text-muted text-sm">Loading…</p>
       ) : gpCards.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {gpCards.map((gp) => (
@@ -57,7 +57,7 @@ export default function Saison() {
           ))}
         </div>
       ) : (
-        <p className="text-muted text-sm">Aucun Grand Prix pour cette saison.</p>
+        <p className="text-muted text-sm">No Grand Prix for this season.</p>
       )}
     </div>
   )

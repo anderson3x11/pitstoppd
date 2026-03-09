@@ -21,7 +21,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-card/80 backdrop-blur-md">
       <nav className="mx-auto flex h-14 max-w-4xl items-center px-4">
-        {/* Logo — occupe 1/3 gauche */}
+        {/* Logo — left 1/3 */}
         <div className="flex-1">
           <Link to="/" className="flex items-center gap-2 select-none w-fit">
             <img
@@ -35,20 +35,20 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* Liens de navigation — centrés */}
+        {/* Navigation links — centered */}
         <div className="flex items-center gap-6">
           <NavLink to="/gps" className={navLinkClass}>
             Grands Prix
           </NavLink>
           <NavLink to="/pilotes" className={navLinkClass}>
-            Pilotes
+            Drivers
           </NavLink>
           <NavLink to="/saisons" className={navLinkClass}>
-            Saisons
+            Seasons
           </NavLink>
         </div>
 
-        {/* Auth — occupe 1/3 droit */}
+        {/* Auth — right 1/3 */}
         <div className="flex-1 flex items-center justify-end">
           {user && profile ? (
             <div
@@ -56,7 +56,7 @@ export default function Navbar() {
               onMouseEnter={() => setDropdownOpen(true)}
               onMouseLeave={() => setDropdownOpen(false)}
             >
-              {/* Trigger */}
+              {/* Trigger button */}
               <button className="flex items-center gap-2 text-sm font-medium text-muted hover:text-white transition-colors">
                 <div className="h-7 w-7 rounded-full bg-card-hover border border-line overflow-hidden">
                   {profile.avatar_url ? (
@@ -86,21 +86,21 @@ export default function Navbar() {
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2 text-sm text-muted hover:text-white hover:bg-card-hover transition-colors"
                     >
-                      Profil
+                      Profile
                     </Link>
                     <Link
                       to="/settings"
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2 text-sm text-muted hover:text-white hover:bg-card-hover transition-colors"
                     >
-                      Paramètres
+                      Settings
                     </Link>
                     <div className="my-1 border-t border-line" />
                     <button
                       onClick={handleSignOut}
                       className="w-full text-left flex items-center gap-2.5 px-4 py-2 text-sm text-subtle hover:text-white hover:bg-card-hover transition-colors"
                     >
-                      Déconnexion
+                      Sign out
                     </button>
                   </div>
                 </div>
@@ -112,13 +112,13 @@ export default function Navbar() {
                 to="/login"
                 className="text-sm font-medium text-muted hover:text-white transition-colors duration-150"
               >
-                Se connecter
+                Sign in
               </Link>
               <Link
                 to="/register"
                 className="rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors duration-150"
               >
-                S'inscrire
+                Sign up
               </Link>
             </div>
           )}

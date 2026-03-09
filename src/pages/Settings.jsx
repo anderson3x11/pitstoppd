@@ -14,7 +14,7 @@ const F1_TEAMS = [
   'Racing Bulls',
   'Red Bull Racing',
   'Williams',
-  // Anciennes écuries (2020-2024)
+  // Former teams (2020-2024)
   'Alfa Romeo',
   'AlphaTauri',
   'Renault',
@@ -63,7 +63,7 @@ export default function Settings() {
   if (authLoading) {
     return (
       <div className="flex min-h-[calc(100vh-56px)] items-center justify-center">
-        <p className="text-muted text-sm">Chargement…</p>
+        <p className="text-muted text-sm">Loading…</p>
       </div>
     )
   }
@@ -72,13 +72,13 @@ export default function Settings() {
     return (
       <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4">
         <div className="text-center space-y-3">
-          <p className="text-white font-semibold">Accès restreint</p>
-          <p className="text-sm text-muted">Vous devez être connecté pour accéder aux paramètres.</p>
+          <p className="text-white font-semibold">Restricted Access</p>
+          <p className="text-sm text-muted">You must be signed in to access settings.</p>
           <Link
             to="/login"
             className="inline-block mt-2 rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
           >
-            Se connecter
+            Sign in
           </Link>
         </div>
       </div>
@@ -113,7 +113,7 @@ export default function Settings() {
         .from('avatars')
         .upload(path, avatarFile, { upsert: true })
       if (uploadError) {
-        setError("Erreur lors du téléchargement de l'avatar.")
+        setError("Error uploading avatar.")
         setSaving(false)
         return
       }
@@ -135,7 +135,7 @@ export default function Settings() {
       .eq('id', user.id)
 
     if (updateError) {
-      setError('Erreur lors de la mise à jour du profil.')
+      setError('Error updating profile.')
     } else {
       setSuccess(true)
       setAvatarFile(null)
@@ -150,7 +150,7 @@ export default function Settings() {
   const selectClass =
     'w-full rounded-lg border border-line bg-card-hover px-3 py-2.5 text-sm text-white focus:outline-none focus:border-f1-red transition-colors appearance-none cursor-pointer'
 
-  // Pilotes disponibles pour le slot i (exclure les deux autres slots)
+  // Available drivers for slot i (exclude the other two slots)
   const availableDrivers = (currentKey) => {
     const otherKeys = ['pilot1', 'pilot2', 'pilot3'].filter((k) => k !== currentKey)
     const taken = new Set(otherKeys.map((k) => form[k]).filter(Boolean))
@@ -159,7 +159,7 @@ export default function Settings() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-black text-white mb-8">Paramètres du profil</h1>
+      <h1 className="text-2xl font-black text-white mb-8">Profile Settings</h1>
 
       <form onSubmit={handleSubmit} className="space-y-8">
 
@@ -170,19 +170,19 @@ export default function Settings() {
         )}
         {success && (
           <div className="rounded-lg border border-green-900/50 bg-green-950/30 px-4 py-3">
-            <p className="text-sm text-green-400">Modifications enregistrées.</p>
+            <p className="text-sm text-green-400">Changes saved.</p>
           </div>
         )}
 
-        {/* Section : Infos de base */}
+        {/* Section: General info */}
         <section className="space-y-4">
           <h2 className="text-sm font-semibold uppercase tracking-widest text-subtle border-b border-line pb-2">
-            Informations générales
+            General Information
           </h2>
 
           {/* Avatar */}
           <div>
-            <label className="block text-xs font-medium text-muted mb-2">Photo de profil</label>
+            <label className="block text-xs font-medium text-muted mb-2">Profile Picture</label>
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-card-hover border border-line flex items-center justify-center overflow-hidden">
                 {avatarPreview || profile?.avatar_url ? (
@@ -202,7 +202,7 @@ export default function Settings() {
                 onClick={() => fileInputRef.current?.click()}
                 className="text-sm font-medium text-muted border border-line rounded px-3 py-1.5 hover:text-white hover:border-subtle transition-colors"
               >
-                Changer la photo
+                Change photo
               </button>
               <input
                 ref={fileInputRef}
@@ -215,7 +215,7 @@ export default function Settings() {
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-muted">Nom d&apos;affichage</label>
+            <label className="block text-xs font-medium text-muted">Display Name</label>
             <input
               name="displayName"
               type="text"
@@ -232,20 +232,20 @@ export default function Settings() {
               value={form.bio}
               onChange={handleChange}
               rows={3}
-              placeholder="Quelques mots sur vous…"
+              placeholder="A few words about you…"
               className={`${inputClass} resize-none`}
             />
           </div>
         </section>
 
-        {/* Section : Favoris F1 */}
+        {/* Section: F1 Favorites */}
         <section className="space-y-4">
           <h2 className="text-sm font-semibold uppercase tracking-widest text-subtle border-b border-line pb-2">
-            Favoris F1
+            F1 Favorites
           </h2>
 
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-muted">Écurie favorite</label>
+            <label className="block text-xs font-medium text-muted">Favorite Team</label>
             <div className="relative">
               <select
                 name="favoriteTeam"
@@ -253,7 +253,7 @@ export default function Settings() {
                 onChange={handleChange}
                 className={selectClass}
               >
-                <option value="">— Choisir une écurie —</option>
+                <option value="">— Select a team —</option>
                 {F1_TEAMS.map((team) => (
                   <option key={team} value={team}>{team}</option>
                 ))}
@@ -265,7 +265,7 @@ export default function Settings() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-2">Top 3 pilotes</label>
+            <label className="block text-xs font-medium text-muted mb-2">Top 3 Drivers</label>
             <div className="space-y-2">
               {(['pilot1', 'pilot2', 'pilot3']).map((key, i) => (
                 <div key={key} className="flex items-center gap-3">
@@ -277,7 +277,7 @@ export default function Settings() {
                       onChange={handleChange}
                       className={selectClass}
                     >
-                      <option value="">— Choisir un pilote —</option>
+                      <option value="">— Select a driver —</option>
                       {availableDrivers(key).map((d) => (
                         <option key={d.id} value={d.id}>
                           {d.given_name} {d.family_name}
@@ -301,14 +301,14 @@ export default function Settings() {
             disabled={saving}
             className="rounded-lg bg-f1-red px-5 py-2.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
           {profile && (
             <Link
               to={`/${profile.username}`}
               className="text-sm text-muted hover:text-white transition-colors"
             >
-              Annuler
+              Cancel
             </Link>
           )}
         </div>

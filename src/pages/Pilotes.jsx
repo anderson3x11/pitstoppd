@@ -40,7 +40,7 @@ function PiloteCard({ pilote, wins }) {
           </p>
           <p className="text-[11px] text-subtle">{pilote.nationality}</p>
           <p className="text-[11px] text-muted">
-            {wins} victoire{wins > 1 ? 's' : ''}
+            {wins} win{wins !== 1 ? 's' : ''}
           </p>
         </div>
       </div>
@@ -66,13 +66,13 @@ export default function Pilotes() {
           .from('drivers')
           .select('id, given_name, family_name, nationality, photo_url, number'),
 
-        // Pilotes ayant participé à la saison 2025 (la dernière avec résultats)
+        // Drivers who participated in the 2025 season (latest with results)
         supabase
           .from('race_drivers')
           .select('driver_id, races!inner(season)')
           .eq('races.season', 2025),
 
-        // Toutes les victoires
+        // All wins
         supabase
           .from('race_drivers')
           .select('driver_id')
@@ -126,33 +126,33 @@ export default function Pilotes() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
 
-      {/* En-tête + recherche */}
+      {/* Header + search */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1">
-          <h1 className="text-2xl font-black text-white">Pilotes</h1>
+          <h1 className="text-2xl font-black text-white">Drivers</h1>
           <p className="text-sm text-muted mt-1">
-            {loading ? 'Chargement…' : `${drivers.length} pilotes · saisons 2020–2025`}
+            {loading ? 'Loading…' : `${drivers.length} drivers · 2020–2025 seasons`}
           </p>
         </div>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher un pilote…"
+          placeholder="Search for a driver…"
           className="w-full sm:w-64 rounded bg-card border border-line px-3 py-2 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-subtle"
         />
       </div>
 
       {loading ? (
-        <p className="text-muted text-sm">Chargement…</p>
+        <p className="text-muted text-sm">Loading…</p>
       ) : (
         <div className="space-y-10">
 
-          {/* Grille 2025 */}
+          {/* 2025 Grid */}
           {current.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold text-muted uppercase tracking-widest mb-4">
-                Grille 2025
+                2025 Grid
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {current.map((p) => (
@@ -162,11 +162,11 @@ export default function Pilotes() {
             </section>
           )}
 
-          {/* Pilotes retirés */}
+          {/* Former drivers */}
           {retired.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold text-muted uppercase tracking-widest mb-4">
-                Anciens pilotes
+                Former Drivers
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {retired.map((p) => (
@@ -178,7 +178,7 @@ export default function Pilotes() {
 
           {filtered.length === 0 && (
             <p className="text-center py-20 text-muted text-sm">
-              Aucun pilote trouvé pour « {search} ».
+              No driver found for "{search}".
             </p>
           )}
 

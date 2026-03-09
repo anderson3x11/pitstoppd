@@ -2,15 +2,15 @@ import { Link } from 'react-router-dom'
 import StarRating from './StarRating'
 
 /**
- * GPCard — carte d'un Grand Prix
+ * GPCard — Grand Prix card
  *
  * Props:
  *  gp.id
- *  gp.name        : "Grand Prix du Japon"
+ *  gp.name        : "Japanese Grand Prix"
  *  gp.season      : 2024
  *  gp.slug        : "japon"
- *  gp.country     : "Japon"
- *  gp.circuit     : "Circuit de Suzuka"
+ *  gp.country     : "Japan"
+ *  gp.circuit     : "Suzuka Circuit"
  *  gp.date        : "2024-04-07"
  *  gp.posterUrl   : string | null
  *  gp.avgRating   : number | null
@@ -20,7 +20,7 @@ export default function GPCard({ gp }) {
   const href = `/gps/${gp.season}/${gp.slug}`
 
   const formattedDate = gp.date
-    ? new Date(gp.date).toLocaleDateString('fr-FR', {
+    ? new Date(gp.date).toLocaleDateString('en-US', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -40,7 +40,7 @@ export default function GPCard({ gp }) {
               className="h-full w-full object-cover"
             />
           ) : (
-            // Placeholder stylisé quand pas d'image
+            // Styled placeholder when no image
             <div className="h-full w-full flex flex-col items-center justify-center p-3 bg-gradient-to-b from-card-hover to-card">
               <span className="text-2xl mb-2">🏁</span>
               <span className="text-center text-[11px] font-medium text-subtle uppercase tracking-wide leading-tight">
@@ -67,7 +67,7 @@ export default function GPCard({ gp }) {
               )}
             </div>
           ) : (
-            <p className="text-[11px] text-subtle italic">Pas encore noté</p>
+            <p className="text-[11px] text-subtle italic">Not rated yet</p>
           )}
         </div>
 

@@ -8,7 +8,7 @@ export default function Footer() {
           PITSTOPPD
         </Link>
         <p className="text-xs text-subtle text-center">
-          Données F1 via{' '}
+          F1 data via{' '}
           <a
             href="https://api.jolpi.ca"
             target="_blank"
@@ -17,12 +17,12 @@ export default function Footer() {
           >
             Jolpica-F1 API
           </a>
-          {' '}· 2025
+          {' '}· 2026
         </p>
         <nav className="flex gap-4 text-xs text-subtle">
           <Link to="/gps" className="hover:text-muted transition-colors">GPs</Link>
-          <Link to="/pilotes" className="hover:text-muted transition-colors">Pilotes</Link>
-          <Link to="/saisons" className="hover:text-muted transition-colors">Saisons</Link>
+          <Link to="/pilotes" className="hover:text-muted transition-colors">Drivers</Link>
+          <Link to="/saisons" className="hover:text-muted transition-colors">Seasons</Link>
         </nav>
       </div>
     </footer>

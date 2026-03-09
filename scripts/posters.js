@@ -10,11 +10,11 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 )
 
-// Mots-clés qui identifient les sessions hors-course (Practice, Qualifs, Sprint, Tests...)
+// Keywords identifying non-race sessions (Practice, Qualifying, Sprint, Tests...)
 const EXCLUDE = /Practice|Qualifying|Sprint|Test|Shootout/i
 
-// Parse un CSV simple (pas de valeurs avec virgules internes)
-// Colonnes attendues : idEvent, dateEvent, Round, strEvent, strPoster, strThumb
+// Parse a simple CSV (no internal commas in values)
+// Expected columns: idEvent, dateEvent, Round, strEvent, strPoster, strThumb
 function parseCsv(content) {
   const lines = content.trim().split('\n').filter(Boolean)
   if (lines.length < 2) return []
@@ -41,24 +41,24 @@ for (const file of files.sort()) {
   const content = readFileSync(join(postersDir, file), 'utf-8')
   const rows = parseCsv(content)
 
-  // Garder uniquement les lignes de course (pas Practice/Qualifying/Sprint/Test...)
-  // et qui ont bien un poster
+  // Keep only race rows (not Practice/Qualifying/Sprint/Test...)
+  // that have a poster URL
   const gpRows = rows.filter((r) => r.poster && !EXCLUDE.test(r.name))
 
   if (gpRows.length === 0) {
-    console.log(`${season}: aucune donnée`)
+    console.log(`${season}: no data`)
     continue
   }
 
-  console.log(`${season}: ${gpRows.length} GPs trouvés`)
+  console.log(`${season}: ${gpRows.length} GPs found`)
 
   for (const row of gpRows) {
     if (!row.date) {
-      console.warn(`  ⚠ Date manquante : ${row.name}`)
+      console.warn(`  ⚠ Missing date: ${row.name}`)
       continue
     }
 
-    // Match par date — évite les problèmes de numérotation entre TheSportsDB et Jolpica
+    // Match by date — avoids numbering mismatches between TheSportsDB and Jolpica
     const { error } = await supabase
       .from('races')
       .update({ poster_url: row.poster })
@@ -74,4 +74,4 @@ for (const file of files.sort()) {
   }
 }
 
-console.log(`\nTerminé : ${total} mis à jour, ${errors} erreur(s)`)
+console.log(`\nDone: ${total} updated, ${errors} error(s)`)

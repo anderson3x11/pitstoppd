@@ -1,16 +1,43 @@
-# React + Vite
+# Pitstoppd
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Letterboxd for Formula 1 Grand Prix.**
 
-Currently, two official plugins are available:
+Rate and review past F1 races, follow other fans, and see what your friends thought of the latest GP.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+**Live:** [pitstoppd.vercel.app](https://pitstoppd.vercel.app)
 
-## React Compiler
+---
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+## Features
 
-## Expanding the ESLint configuration
+- **GP Ratings & Reviews** — Rate any past Grand Prix from 0.5 to 5 stars and write reviews with optional spoiler tags
+- **User Profiles** — Set your favorite team, top 3 drivers, bio, and avatar
+- **Friends Activity Feed** — Follow other users and see their latest ratings and reviews on your home page
+- **Race Results & Qualifying** — Full finishing order and grid positions for every GP
+- **Driver Profiles & Stats** — Career stats, race history, and portraits for every driver since 2020
+- **Season Overviews** — Browse seasons from 2020 to present with champions and race grids
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Tech Stack
+
+| Technology | Role |
+|---|---|
+| React 19 | UI framework |
+| Vite 7 | Build tooling (SWC) |
+| Tailwind CSS v4 | Styling (CSS-first config) |
+| Supabase | Auth, Postgres DB, Storage, Row Level Security |
+| React Router DOM | Client-side routing |
+| Jolpica-F1 API | F1 data (successor to Ergast) |
+
+## Status
+
+Actively in development. The database covers all F1 seasons from 2020 to present.
+
+## Data
+
+Race data (schedules, results, drivers) comes from the [Jolpica-F1 API](https://api.jolpi.ca/ergast/f1/). Driver photos are sourced from Wikipedia. GP poster images come from [TheSportsDB](https://www.thesportsdb.com/).
+
+The `scripts/` folder contains seed and refresh scripts for populating and updating the database.
+
+---
+
+Built by **Anderson**

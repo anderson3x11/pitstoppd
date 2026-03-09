@@ -37,8 +37,8 @@ export default function Saisons() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-white">Saisons</h1>
-        <p className="text-sm text-muted mt-1">F1 de 2020 à aujourd&apos;hui</p>
+        <h1 className="text-2xl font-black text-white">Seasons</h1>
+        <p className="text-sm text-muted mt-1">F1 from 2020 to present</p>
       </div>
 
       <div className="space-y-3">
@@ -63,13 +63,13 @@ export default function Saisons() {
                       <p className="text-xs text-muted">{champion.team}</p>
                     </>
                   ) : (
-                    <p className="text-sm text-muted italic">En cours</p>
+                    <p className="text-sm text-muted italic">In progress</p>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-subtle">
-                  {loading ? '…' : nbCourses > 0 ? `${nbCourses} courses` : 'Aucune course'}
+                  {loading ? '…' : nbCourses > 0 ? `${nbCourses} races` : 'No races'}
                 </span>
                 <span className="text-muted">→</span>
               </div>

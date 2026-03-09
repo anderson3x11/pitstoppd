@@ -29,7 +29,7 @@ export default function GrandsPrix() {
       })
   }, [saisonActive])
 
-  // Adapter les noms de colonnes Supabase → props GPCard
+  // Map Supabase column names to GPCard props
   const gpCards = gps.map((gp) => ({
     ...gp,
     posterUrl: gp.poster_url,
@@ -40,15 +40,15 @@ export default function GrandsPrix() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
 
-      {/* En-tête */}
+      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-black text-white">Grands Prix</h1>
         <p className="text-sm text-muted mt-1">
-          {loading ? 'Chargement…' : `${gps.length} courses · saison ${saisonActive}`}
+          {loading ? 'Loading…' : `${gps.length} races · ${saisonActive} season`}
         </p>
       </div>
 
-      {/* Filtre par saison */}
+      {/* Season filter */}
       <div className="flex items-center gap-2 mb-8 flex-wrap">
         {SAISONS.map((s) => (
           <button
@@ -65,24 +65,24 @@ export default function GrandsPrix() {
         ))}
       </div>
 
-      {/* Lien vers la page saison */}
+      {/* Link to season page */}
       <div className="mb-6">
         <Link
           to={`/saisons/${saisonActive}`}
           className="text-sm text-muted hover:text-white transition-colors"
         >
-          Voir le bilan de la saison {saisonActive} →
+          View {saisonActive} season overview →
         </Link>
       </div>
 
-      {/* Contenu */}
+      {/* Content */}
       {error ? (
         <div className="text-center py-20 text-muted">
-          <p>Erreur : {error}</p>
+          <p>Error: {error}</p>
         </div>
       ) : loading ? (
         <div className="text-center py-20 text-muted">
-          <p>Chargement…</p>
+          <p>Loading…</p>
         </div>
       ) : gpCards.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -92,7 +92,7 @@ export default function GrandsPrix() {
         </div>
       ) : (
         <div className="text-center py-20 text-muted">
-          <p>Aucun Grand Prix trouvé pour la saison {saisonActive}.</p>
+          <p>No Grand Prix found for the {saisonActive} season.</p>
         </div>
       )}
 

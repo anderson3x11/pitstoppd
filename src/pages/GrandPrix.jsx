@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 function ReviewCard({ review, isLiked, onLike }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
 
-  const formattedDate = new Date(review.created_at).toLocaleDateString('fr-FR', {
+  const formattedDate = new Date(review.created_at).toLocaleDateString('en-US', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
 
@@ -26,9 +26,9 @@ function ReviewCard({ review, isLiked, onLike }) {
 
       {review.spoiler && !spoilerVisible ? (
         <div className="rounded bg-card-hover border border-line px-4 py-3 text-center">
-          <p className="text-xs text-subtle mb-2">Cette critique contient des spoilers</p>
+          <p className="text-xs text-subtle mb-2">This review contains spoilers</p>
           <button onClick={() => setSpoilerVisible(true)} className="text-xs font-medium text-muted hover:text-white transition-colors">
-            Afficher quand même
+            Show anyway
           </button>
         </div>
       ) : (
@@ -65,7 +65,7 @@ function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, on
       >
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-white">
-            {userReview ? 'Modifier ma critique' : 'Écrire une critique'}
+            {userReview ? 'Edit my review' : 'Write a review'}
           </h3>
           <button onClick={onClose} className="text-subtle hover:text-white transition-colors text-lg leading-none">
             ✕
@@ -79,7 +79,7 @@ function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, on
             value={reviewForm.content}
             onChange={(e) => setReviewForm((prev) => ({ ...prev, content: e.target.value }))}
             rows={5}
-            placeholder="Votre critique…"
+            placeholder="Your review…"
             required
             autoFocus
             className="w-full rounded-lg border border-line bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-f1-red transition-colors resize-none"
@@ -92,18 +92,18 @@ function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, on
                 onChange={(e) => setReviewForm((prev) => ({ ...prev, spoiler: e.target.checked }))}
                 className="accent-f1-red"
               />
-              <span className="text-sm text-muted">Contient des spoilers</span>
+              <span className="text-sm text-muted">Contains spoilers</span>
             </label>
             <div className="flex items-center gap-3">
               <button type="button" onClick={onClose} className="text-sm text-subtle hover:text-white transition-colors">
-                Annuler
+                Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
                 className="rounded bg-f1-red px-4 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60"
               >
-                {submitting ? 'Envoi…' : userReview ? 'Modifier' : 'Publier'}
+                {submitting ? 'Submitting…' : userReview ? 'Edit' : 'Publish'}
               </button>
             </div>
           </div>
@@ -180,8 +180,8 @@ export default function GrandPrix() {
 
         setReviews(reviewsData.map((r) => ({
           ...r,
-          username: profileMap[r.user_id]?.username ?? 'anonyme',
-          displayName: profileMap[r.user_id]?.display_name ?? 'Anonyme',
+          username: profileMap[r.user_id]?.username ?? 'anonymous',
+          displayName: profileMap[r.user_id]?.display_name ?? 'Anonymous',
           rating: ratingMap[r.user_id] ?? null,
           likes: likesMap[r.id] ?? 0,
         })))
@@ -264,17 +264,17 @@ export default function GrandPrix() {
     }
   }
 
-  if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Chargement…</p></div>
-  if (!race) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Grand Prix introuvable.</p></div>
+  if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
+  if (!race) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Grand Prix not found.</p></div>
 
-  const formattedDate = new Date(race.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const formattedDate = new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const classement = [...raceDrivers].filter((rd) => rd.position != null).sort((a, b) => a.position - b.position)
   const qualifs = [...raceDrivers].filter((rd) => rd.grid_position != null).sort((a, b) => a.grid_position - b.grid_position)
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
 
-      {/* ── Modale critique ── */}
+      {/* ── Review modal ── */}
       {showReviewModal && (
         <ReviewModal
           race={race}
@@ -287,7 +287,7 @@ export default function GrandPrix() {
         />
       )}
 
-      {/* ── En-tête ── */}
+      {/* ── Header ── */}
       <div className="flex gap-6 mb-10">
         {/* Poster */}
         <div className="hidden sm:block w-36 shrink-0 rounded-lg overflow-hidden border border-line aspect-[2/3] bg-card-hover">
@@ -298,7 +298,7 @@ export default function GrandPrix() {
           )}
         </div>
 
-        {/* Infos principales */}
+        {/* Main info */}
         <div className="flex-1 space-y-2 min-w-0">
           <div className="flex items-center gap-2 text-xs text-muted">
             <Link to="/gps" className="hover:text-white transition-colors">GPs</Link>
@@ -313,21 +313,21 @@ export default function GrandPrix() {
             {avgRating != null ? (
               <>
                 <StarRating value={avgRating} size="lg" showValue />
-                <span className="text-sm text-subtle">{reviewCount} critique{reviewCount !== 1 ? 's' : ''}</span>
+                <span className="text-sm text-subtle">{reviewCount} review{reviewCount !== 1 ? 's' : ''}</span>
               </>
             ) : (
-              <span className="text-sm text-subtle">Aucune note pour l&apos;instant</span>
+              <span className="text-sm text-subtle">No ratings yet</span>
             )}
           </div>
         </div>
 
-        {/* ── Carte "Mon activité" ── */}
+        {/* ── "My Activity" card ── */}
         <div className="hidden sm:flex flex-col w-52 shrink-0 rounded-lg border border-line bg-card p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Mon activité</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">My Activity</h3>
 
           {user ? (
             <>
-              {/* Note — centrée, valeur en grand si notée */}
+              {/* Rating — centered, large value if rated */}
               <div className="flex-1 flex flex-col items-center justify-center gap-2">
                 <StarRating
                   value={userRating ?? 0}
@@ -340,50 +340,50 @@ export default function GrandPrix() {
                     {userRating.toFixed(1)}
                   </span>
                 ) : (
-                  <p className="text-xs text-subtle italic">Pas encore noté</p>
+                  <p className="text-xs text-subtle italic">Not rated yet</p>
                 )}
               </div>
 
-              {/* Indicateur critique + bouton en bas */}
+              {/* Review indicator + button at bottom */}
               <div className="border-t border-line pt-3 space-y-2">
                 {userReview && (
                   <p className="text-xs text-center text-subtle">
-                    ✓ Critique rédigée
+                    ✓ Review written
                   </p>
                 )}
                 <button
                   onClick={handleOpenReviewModal}
                   className="w-full rounded border border-line px-3 py-2 text-xs font-medium text-muted hover:text-white hover:border-subtle transition-colors text-center"
                 >
-                  {userReview ? 'Modifier ma critique' : 'Écrire une critique'}
+                  {userReview ? 'Edit my review' : 'Write a review'}
                 </button>
               </div>
             </>
           ) : (
             <div className="flex-1 flex flex-col justify-center space-y-3">
               <p className="text-xs text-muted leading-relaxed">
-                Connectez-vous pour noter ce GP et écrire une critique.
+                Sign in to rate this GP and write a review.
               </p>
               <Link
                 to="/login"
                 className="block text-center rounded bg-f1-red px-3 py-2 text-xs font-semibold text-white hover:bg-f1-red-hover transition-colors"
               >
-                Se connecter
+                Sign in
               </Link>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Classement + Qualifs | Critiques ── */}
+      {/* ── Race Results + Qualifying | Reviews ── */}
       <div className="grid grid-cols-3 gap-8">
 
-        {/* Colonne gauche — Classement + Qualifications */}
+        {/* Left column — Race Results + Qualifying */}
         <div className="space-y-8">
 
-          {/* Classement — spoiler toggle désactivé pour l'instant, à revoir plus tard */}
+          {/* Race Results — spoiler toggle disabled for now, revisit later */}
           <section>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Classement</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Race Results</h2>
             <div className="rounded-lg border border-line overflow-hidden">
               {classement.map((r) => (
                 <div key={r.driver_id} className="flex items-center gap-2.5 px-3 py-2 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
@@ -399,9 +399,9 @@ export default function GrandPrix() {
             </div>
           </section>
 
-          {/* Qualifications — spoiler toggle désactivé pour l'instant, à revoir plus tard */}
+          {/* Qualifying — spoiler toggle disabled for now, revisit later */}
           <section>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Qualifications</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Qualifying</h2>
             <div className="rounded-lg border border-line overflow-hidden">
               {qualifs.map((q) => (
                 <div key={q.driver_id} className="flex items-center gap-2.5 px-3 py-2 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
@@ -416,28 +416,28 @@ export default function GrandPrix() {
 
         </div>
 
-        {/* Colonne droite — Critiques */}
+        {/* Right column — Reviews */}
         <div className="col-span-2">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-bold text-white">
-              Critiques <span className="text-subtle font-normal text-sm">({reviewCount})</span>
+              Reviews <span className="text-subtle font-normal text-sm">({reviewCount})</span>
             </h2>
-            {/* Bouton mobile uniquement (la carte "Mon activité" est cachée sur mobile) */}
+            {/* Mobile-only button ("My Activity" card is hidden on mobile) */}
             {user && (
               <button
                 onClick={handleOpenReviewModal}
                 className="sm:hidden rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
               >
-                {userReview ? 'Modifier' : 'Écrire'}
+                {userReview ? 'Edit' : 'Write'}
               </button>
             )}
           </div>
 
           {!user && (
             <div className="mb-5 rounded-lg border border-line bg-card p-4 flex items-center justify-between gap-4">
-              <p className="text-sm text-muted">Connectez-vous pour écrire une critique.</p>
+              <p className="text-sm text-muted">Sign in to write a review.</p>
               <Link to="/login" className="text-sm font-medium text-f1-red hover:text-f1-red-hover transition-colors shrink-0">
-                Se connecter
+                Sign in
               </Link>
             </div>
           )}
@@ -449,7 +449,7 @@ export default function GrandPrix() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-subtle">Aucune critique pour l&apos;instant.</p>
+            <p className="text-sm text-subtle">No reviews yet.</p>
           )}
         </div>
 
