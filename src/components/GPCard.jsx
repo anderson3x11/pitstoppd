@@ -28,7 +28,7 @@ export default function GPCard({ gp }) {
     : null
 
   return (
-    <Link to={href} className="group block">
+    <Link to={href} className="group block transition-transform duration-150 hover:scale-[1.02]">
       <div className="rounded-lg overflow-hidden bg-card border border-line transition-colors duration-150 hover:border-subtle">
 
         {/* Poster */}
@@ -37,7 +37,7 @@ export default function GPCard({ gp }) {
             <img
               src={gp.posterUrl}
               alt={gp.name}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="h-full w-full object-cover"
             />
           ) : (
             // Placeholder stylisé quand pas d'image

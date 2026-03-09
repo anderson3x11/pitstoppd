@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getDriverPhoto } from '../lib/driverPhotos'
 
 const TODAY = new Date().toISOString().split('T')[0]
 
@@ -83,9 +84,9 @@ export default function Pilote() {
       <div className="flex gap-6 mb-10">
         {/* Photo */}
         <div className="hidden sm:flex w-32 h-40 shrink-0 rounded-lg border border-line bg-card-hover items-center justify-center overflow-hidden">
-          {pilote.photo_url ? (
+          {getDriverPhoto(pilote) ? (
             <img
-              src={pilote.photo_url}
+              src={getDriverPhoto(pilote)}
               alt={`${pilote.given_name} ${pilote.family_name}`}
               className="w-full h-full object-cover object-top"
             />

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getDriverPhoto } from '../lib/driverPhotos'
 
 function PiloteCard({ pilote, wins }) {
   const initiales = [pilote.given_name, pilote.family_name]
@@ -14,9 +15,9 @@ function PiloteCard({ pilote, wins }) {
 
         {/* Visuel */}
         <div className="aspect-[2/3] bg-card-hover relative overflow-hidden">
-          {pilote.photo_url ? (
+          {getDriverPhoto(pilote) ? (
             <img
-              src={pilote.photo_url}
+              src={getDriverPhoto(pilote)}
               alt={`${pilote.given_name} ${pilote.family_name}`}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />

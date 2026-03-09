@@ -132,22 +132,40 @@ export default function Home() {
     <div>
       {/* ── Hero : dernier GP en vedette ── */}
       <section className="relative border-b border-line">
-        <div className="absolute inset-0 bg-gradient-to-b from-card-hover/60 to-page" />
+        {/* Fond CSS */}
+        <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)' }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
+
         <div className="relative mx-auto max-w-4xl px-4 py-16 flex items-end gap-8">
-          <div className="hidden sm:block w-28 shrink-0 rounded-lg overflow-hidden border border-line aspect-[2/3] bg-card-hover">
-            <div className="h-full w-full flex flex-col items-center justify-center p-2">
-              <span className="text-3xl mb-1">🏁</span>
-            </div>
+          {/* Poster */}
+          <div className="hidden sm:block w-40 shrink-0 rounded-lg overflow-hidden border border-white/10 shadow-2xl aspect-[2/3] bg-card-hover">
+            {latestGP?.posterUrl ? (
+              <img src={latestGP.posterUrl} alt={latestGP.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center">
+                <span className="text-3xl">🏁</span>
+              </div>
+            )}
           </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">Dernier Grand Prix</p>
+
+          {/* Infos */}
+          <div className="space-y-3 pb-1">
+            <div className="flex items-center gap-2">
+              <span className="block w-6 h-px bg-f1-red" />
+              <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">Dernier Grand Prix</p>
+            </div>
             {loading ? (
               <p className="text-muted text-sm">Chargement…</p>
             ) : latestGP ? (
               <>
-                <h1 className="text-3xl font-black text-white leading-tight">{latestGP.name}</h1>
-                <p className="text-sm text-muted">{latestGP.season} · {latestGP.circuit}</p>
-                <div className="pt-2">
+                <h1 className="text-4xl font-black text-white leading-tight">{latestGP.name}</h1>
+                <p className="text-sm text-muted">
+                  {latestGP.season}
+                  {latestGP.circuit && <> · {latestGP.circuit}</>}
+                  {latestGP.country && <> · {latestGP.country}</>}
+                </p>
+                <div className="pt-1">
                   <Link
                     to={`/gps/${latestGP.season}/${latestGP.slug}`}
                     className="inline-flex items-center gap-1.5 rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
