@@ -1,3 +1,4 @@
+/* eslint-env node */
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, readdirSync } from 'fs'
 import { join, dirname } from 'path'

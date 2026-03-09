@@ -1,3 +1,4 @@
+/* eslint-env node */
 /**
  * Refresh script — updates the current F1 season data and driver photos.
  *

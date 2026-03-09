@@ -3,14 +3,38 @@ import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
 import { supabase } from '../lib/supabase'
 
-const SAISONS = [2025, 2024, 2023, 2022, 2021, 2020]
 const TODAY = new Date().toISOString().split('T')[0]
+const FIRST_SEASON = 2020
+
+function buildSeasonsList(latestSeason) {
+  const seasons = []
+  for (let y = latestSeason; y >= FIRST_SEASON; y--) seasons.push(y)
+  return seasons
+}
 
 export default function GrandsPrix() {
-  const [saisonActive, setSaisonActive] = useState(2025)
+  const [seasons, setSeasons] = useState(() => buildSeasonsList(new Date().getFullYear()))
+  const [saisonActive, setSaisonActive] = useState(seasons[0])
   const [gps, setGps] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  // Detect latest season with data
+  useEffect(() => {
+    supabase
+      .from('races')
+      .select('season')
+      .lt('date', TODAY)
+      .order('season', { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data?.[0]) {
+          const latest = data[0].season
+          setSeasons(buildSeasonsList(latest))
+          setSaisonActive(latest)
+        }
+      })
+  }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -50,7 +74,7 @@ export default function GrandsPrix() {
 
       {/* Season filter */}
       <div className="flex items-center gap-2 mb-8 flex-wrap">
-        {SAISONS.map((s) => (
+        {seasons.map((s) => (
           <button
             key={s}
             onClick={() => setSaisonActive(s)}

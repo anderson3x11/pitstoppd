@@ -1,3 +1,4 @@
+/* eslint-env node */
 /**
  * Fetches driver photos from Wikipedia (EN) and generates src/lib/driverPhotos.js
  * Run: node --env-file=.env.local scripts/fetchDriverPhotos.js

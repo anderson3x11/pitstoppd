@@ -51,12 +51,23 @@ function PiloteCard({ pilote, wins }) {
 export default function Pilotes() {
   const [drivers, setDrivers] = useState([])
   const [currentIds, setCurrentIds] = useState(new Set())
+  const [latestSeason, setLatestSeason] = useState(null)
   const [winsMap, setWinsMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
     async function load() {
+      // Detect the latest season with race results
+      const { data: latestRace } = await supabase
+        .from('race_drivers')
+        .select('races!inner(season)')
+        .order('races(season)', { ascending: false })
+        .limit(1)
+
+      const season = latestRace?.[0]?.races?.season ?? new Date().getFullYear()
+      setLatestSeason(season)
+
       const [
         { data: driversData },
         { data: currentData },
@@ -66,11 +77,11 @@ export default function Pilotes() {
           .from('drivers')
           .select('id, given_name, family_name, nationality, photo_url, number'),
 
-        // Drivers who participated in the 2025 season (latest with results)
+        // Drivers who participated in the latest season
         supabase
           .from('race_drivers')
           .select('driver_id, races!inner(season)')
-          .eq('races.season', 2025),
+          .eq('races.season', season),
 
         // All wins
         supabase
@@ -131,7 +142,7 @@ export default function Pilotes() {
         <div className="flex-1">
           <h1 className="text-2xl font-black text-white">Drivers</h1>
           <p className="text-sm text-muted mt-1">
-            {loading ? 'Loading…' : `${drivers.length} drivers · 2020–2025 seasons`}
+            {loading ? 'Loading…' : `${drivers.length} drivers · 2020–${latestSeason} seasons`}
           </p>
         </div>
         <input
@@ -148,11 +159,11 @@ export default function Pilotes() {
       ) : (
         <div className="space-y-10">
 
-          {/* 2025 Grid */}
+          {/* Current Grid */}
           {current.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold text-muted uppercase tracking-widest mb-4">
-                2025 Grid
+                {latestSeason} Grid
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {current.map((p) => (

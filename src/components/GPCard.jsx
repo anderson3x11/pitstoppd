@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import StarRating from './StarRating'
+import { getCountryFlag } from '../lib/countryFlags'
 
 /**
  * GPCard — Grand Prix card
@@ -42,7 +43,7 @@ export default function GPCard({ gp }) {
           ) : (
             // Styled placeholder when no image
             <div className="h-full w-full flex flex-col items-center justify-center p-3 bg-gradient-to-b from-card-hover to-card">
-              <span className="text-2xl mb-2">🏁</span>
+              <span className="text-4xl mb-2">{getCountryFlag(gp.country)}</span>
               <span className="text-center text-[11px] font-medium text-subtle uppercase tracking-wide leading-tight">
                 {gp.name}
               </span>

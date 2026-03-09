@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 
 const TODAY = new Date().toISOString().split('T')[0]
 
-const SEASONS = [2025, 2024, 2023, 2022, 2021, 2020]
+const FIRST_SEASON = 2020
 
 const CHAMPIONS = {
   2025: { driver: 'Lando Norris', team: 'McLaren' },
@@ -16,6 +16,7 @@ const CHAMPIONS = {
 }
 
 export default function Saisons() {
+  const [seasons, setSeasons] = useState([])
   const [raceCounts, setRaceCounts] = useState({})
   const [loading, setLoading] = useState(true)
 
@@ -30,6 +31,13 @@ export default function Saisons() {
           counts[row.season] = (counts[row.season] ?? 0) + 1
         }
         setRaceCounts(counts)
+
+        // Build seasons list from data
+        const maxSeason = Math.max(...Object.keys(counts).map(Number), FIRST_SEASON)
+        const list = []
+        for (let y = maxSeason; y >= FIRST_SEASON; y--) list.push(y)
+        setSeasons(list)
+
         setLoading(false)
       })
   }, [])
@@ -42,7 +50,7 @@ export default function Saisons() {
       </div>
 
       <div className="space-y-3">
-        {SEASONS.map((annee) => {
+        {seasons.map((annee) => {
           const champion = CHAMPIONS[annee]
           const nbCourses = raceCounts[annee] ?? 0
 

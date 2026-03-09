@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import StarRating from '../components/StarRating'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { getCountryFlag } from '../lib/countryFlags'
 
 function ReviewCard({ review, isLiked, onLike }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
@@ -294,7 +295,10 @@ export default function GrandPrix() {
           {race.poster_url ? (
             <img src={race.poster_url} alt={race.name} className="h-full w-full object-cover" />
           ) : (
-            <div className="h-full w-full flex items-center justify-center"><span className="text-3xl">🏁</span></div>
+            <div className="h-full w-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-card-hover to-card">
+              <span className="text-5xl">{getCountryFlag(race.country)}</span>
+              <span className="text-center text-[11px] font-medium text-subtle uppercase tracking-wide leading-tight px-2">{race.name}</span>
+            </div>
           )}
         </div>
 

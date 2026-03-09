@@ -1,3 +1,4 @@
+/* eslint-env node */
 import { createClient } from '@supabase/supabase-js'
 
 // Run: node --env-file=.env.local scripts/seed.js
