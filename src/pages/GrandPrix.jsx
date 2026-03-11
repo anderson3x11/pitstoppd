@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { getCountryFlag } from '../lib/countryFlags'
 
-function ReviewCard({ review, isLiked, onLike }) {
+function ReviewCard({ review, isLiked, onLike, isOwn }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
 
   const formattedDate = new Date(review.created_at).toLocaleDateString('en-US', {
@@ -28,7 +28,7 @@ function ReviewCard({ review, isLiked, onLike }) {
       {review.spoiler && !spoilerVisible ? (
         <div className="rounded bg-card-hover border border-line px-4 py-3 text-center">
           <p className="text-xs text-subtle mb-2">This review contains spoilers</p>
-          <button onClick={() => setSpoilerVisible(true)} className="text-xs font-medium text-muted hover:text-white transition-colors">
+          <button onClick={() => setSpoilerVisible(true)} className="text-xs font-medium text-muted hover:text-white transition-colors cursor-pointer">
             Show anyway
           </button>
         </div>
@@ -37,13 +37,15 @@ function ReviewCard({ review, isLiked, onLike }) {
       )}
 
       <div className="flex items-center gap-4 pt-1">
-        <button
-          onClick={() => onLike?.(review.id)}
-          className={`flex items-center gap-1.5 text-xs transition-colors ${isLiked ? 'text-f1-red' : 'text-subtle hover:text-white'}`}
-        >
-          <span>{isLiked ? '♥' : '♡'}</span>
-          <span>{review.likes ?? 0}</span>
-        </button>
+        {!isOwn && (
+          <button
+            onClick={() => onLike?.(review.id)}
+            className={`flex items-center gap-1.5 text-xs transition-colors cursor-pointer ${isLiked ? 'text-f1-red' : 'text-subtle hover:text-white'}`}
+          >
+            <span>{isLiked ? '♥' : '♡'}</span>
+            <span>{review.likes ?? 0}</span>
+          </button>
+        )}
         {review.spoiler && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-card-hover border border-line text-subtle uppercase tracking-wide">
             Spoiler
@@ -54,7 +56,7 @@ function ReviewCard({ review, isLiked, onLike }) {
   )
 }
 
-function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, onClose, submitting }) {
+function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, onDelete, onClose, submitting }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
@@ -68,7 +70,7 @@ function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, on
           <h3 className="text-base font-bold text-white">
             {userReview ? 'Edit my review' : 'Write a review'}
           </h3>
-          <button onClick={onClose} className="text-subtle hover:text-white transition-colors text-lg leading-none">
+          <button onClick={onClose} className="text-subtle hover:text-white transition-colors text-lg leading-none cursor-pointer">
             ✕
           </button>
         </div>
@@ -96,13 +98,18 @@ function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, on
               <span className="text-sm text-muted">Contains spoilers</span>
             </label>
             <div className="flex items-center gap-3">
-              <button type="button" onClick={onClose} className="text-sm text-subtle hover:text-white transition-colors">
+              {userReview && (
+                <button type="button" onClick={onDelete} className="text-sm text-subtle hover:text-red-400 transition-colors cursor-pointer">
+                  Delete
+                </button>
+              )}
+              <button type="button" onClick={onClose} className="text-sm text-subtle hover:text-white transition-colors cursor-pointer">
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded bg-f1-red px-4 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60"
+                className="rounded bg-f1-red px-4 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
               >
                 {submitting ? 'Submitting…' : userReview ? 'Edit' : 'Publish'}
               </button>
@@ -131,6 +138,8 @@ export default function GrandPrix() {
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [reviewForm, setReviewForm] = useState({ content: '', spoiler: false })
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [showAllResults, setShowAllResults] = useState(false)
+  const [showAllQualifs, setShowAllQualifs] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -251,6 +260,15 @@ export default function GrandPrix() {
     setReviewSubmitting(false)
   }
 
+  const handleDeleteReview = async () => {
+    if (!userReview) return
+    await supabase.from('reviews').delete().eq('id', userReview.id)
+    setReviews((prev) => prev.filter((r) => r.id !== userReview.id))
+    setReviewCount((n) => n - 1)
+    setUserReview(null)
+    setShowReviewModal(false)
+  }
+
   const handleLike = async (reviewId) => {
     if (!user) return
     const liked = userLikes.has(reviewId)
@@ -283,6 +301,7 @@ export default function GrandPrix() {
           reviewForm={reviewForm}
           setReviewForm={setReviewForm}
           onSubmit={handleReviewSubmit}
+          onDelete={handleDeleteReview}
           onClose={() => setShowReviewModal(false)}
           submitting={reviewSubmitting}
         />
@@ -291,7 +310,7 @@ export default function GrandPrix() {
       {/* ── Header ── */}
       <div className="flex gap-6 mb-10">
         {/* Poster */}
-        <div className="hidden sm:block w-36 shrink-0 rounded-lg overflow-hidden border border-line aspect-[2/3] bg-card-hover">
+        <div className="hidden sm:block w-48 shrink-0 rounded-lg overflow-hidden border border-line aspect-[2/3] bg-card-hover">
           {race.poster_url ? (
             <img src={race.poster_url} alt={race.name} className="h-full w-full object-cover" />
           ) : (
@@ -304,14 +323,14 @@ export default function GrandPrix() {
 
         {/* Main info */}
         <div className="flex-1 space-y-2 min-w-0">
-          <div className="flex items-center gap-2 text-xs text-muted">
+          <div className="flex items-center gap-2 text-sm text-subtle">
             <Link to="/gps" className="hover:text-white transition-colors">GPs</Link>
             <span>/</span>
             <Link to={`/saisons/${saison}`} className="hover:text-white transition-colors">{saison}</Link>
           </div>
-          <h1 className="text-3xl font-black text-white leading-tight">{race.name}</h1>
-          <p className="text-sm text-muted capitalize">{formattedDate}</p>
-          <p className="text-sm text-muted">{race.circuit} · {race.country}</p>
+          <h1 className="text-5xl font-black text-white leading-tight">{race.name}</h1>
+          <p className="text-lg text-muted capitalize">{formattedDate}</p>
+          <p className="text-lg text-muted">{race.circuit} · {race.country}</p>
 
           <div className="flex items-center gap-3 pt-2">
             {avgRating != null ? (
@@ -357,7 +376,7 @@ export default function GrandPrix() {
                 )}
                 <button
                   onClick={handleOpenReviewModal}
-                  className="w-full rounded border border-line px-3 py-2 text-xs font-medium text-muted hover:text-white hover:border-subtle transition-colors text-center"
+                  className="w-full rounded border border-line px-3 py-2 text-xs font-medium text-muted hover:text-white hover:border-subtle transition-colors text-center cursor-pointer"
                 >
                   {userReview ? 'Edit my review' : 'Write a review'}
                 </button>
@@ -385,14 +404,14 @@ export default function GrandPrix() {
         {/* Left column — Race Results + Qualifying */}
         <div className="space-y-8">
 
-          {/* Race Results — spoiler toggle disabled for now, revisit later */}
+          {/* Race Results */}
           <section>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Race Results</h2>
+            <h2 className="text-lg font-bold text-white mb-5">Race Results</h2>
             <div className="rounded-lg border border-line overflow-hidden">
-              {classement.map((r) => (
-                <div key={r.driver_id} className="flex items-center gap-2.5 px-3 py-2 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
+              {(showAllResults ? classement : classement.slice(0, 5)).map((r) => (
+                <div key={r.driver_id} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
                   <span className="w-4 text-xs font-bold text-muted tabular-nums text-right shrink-0">{r.position}</span>
-                  <Link to={`/pilotes/${r.driver_id}`} className="text-xs font-medium text-white hover:text-f1-red transition-colors flex-1 truncate">
+                  <Link to={`/pilotes/${r.driver_id}`} className="text-sm font-medium text-white hover:text-f1-red transition-colors flex-1 truncate">
                     {r.drivers?.given_name} {r.drivers?.family_name}
                   </Link>
                   {r.status && r.status !== 'Finished' && (
@@ -401,21 +420,31 @@ export default function GrandPrix() {
                 </div>
               ))}
             </div>
+            {classement.length > 5 && (
+              <button onClick={() => setShowAllResults((v) => !v)} className="mt-2 text-xs text-muted hover:text-white transition-colors cursor-pointer underline underline-offset-2">
+                {showAllResults ? 'View less' : `View all ${classement.length}`}
+              </button>
+            )}
           </section>
 
-          {/* Qualifying — spoiler toggle disabled for now, revisit later */}
+          {/* Qualifying */}
           <section>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Qualifying</h2>
+            <h2 className="text-lg font-bold text-white mb-5">Qualifying</h2>
             <div className="rounded-lg border border-line overflow-hidden">
-              {qualifs.map((q) => (
-                <div key={q.driver_id} className="flex items-center gap-2.5 px-3 py-2 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
+              {(showAllQualifs ? qualifs : qualifs.slice(0, 5)).map((q) => (
+                <div key={q.driver_id} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
                   <span className="w-4 text-xs font-bold text-muted tabular-nums text-right shrink-0">{q.grid_position}</span>
-                  <Link to={`/pilotes/${q.driver_id}`} className="text-xs font-medium text-white hover:text-f1-red transition-colors flex-1 truncate">
+                  <Link to={`/pilotes/${q.driver_id}`} className="text-sm font-medium text-white hover:text-f1-red transition-colors flex-1 truncate">
                     {q.drivers?.given_name} {q.drivers?.family_name}
                   </Link>
                 </div>
               ))}
             </div>
+            {qualifs.length > 5 && (
+              <button onClick={() => setShowAllQualifs((v) => !v)} className="mt-2 text-xs text-muted hover:text-white transition-colors cursor-pointer underline underline-offset-2">
+                {showAllQualifs ? 'View less' : `View all ${qualifs.length}`}
+              </button>
+            )}
           </section>
 
         </div>
@@ -430,7 +459,7 @@ export default function GrandPrix() {
             {user && (
               <button
                 onClick={handleOpenReviewModal}
-                className="sm:hidden rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
+                className="sm:hidden rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors cursor-pointer"
               >
                 {userReview ? 'Edit' : 'Write'}
               </button>
@@ -449,7 +478,7 @@ export default function GrandPrix() {
           {reviews.length > 0 ? (
             <div className="space-y-4">
               {reviews.map((r) => (
-                <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={user ? handleLike : undefined} />
+                <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={user ? handleLike : undefined} isOwn={user?.id === r.user_id} />
               ))}
             </div>
           ) : (

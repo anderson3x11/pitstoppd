@@ -3,6 +3,9 @@ import { useParams, Link } from 'react-router-dom'
 import StarRating from '../components/StarRating'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { getDriverPhoto } from '../lib/driverPhotos'
+import { getTeamColor } from '../lib/teamColors'
+import { getTeamPhoto } from '../lib/teamPhotos'
 
 function ReviewCard({ review }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
@@ -25,7 +28,7 @@ function ReviewCard({ review }) {
       {review.spoiler && !spoilerVisible ? (
         <div className="rounded bg-card-hover border border-line px-3 py-2 text-center">
           <p className="text-xs text-subtle mb-1">Contains spoilers</p>
-          <button onClick={() => setSpoilerVisible(true)} className="text-xs font-medium text-muted hover:text-white transition-colors">
+          <button onClick={() => setSpoilerVisible(true)} className="text-xs font-medium text-muted hover:text-white transition-colors cursor-pointer">
             Show anyway
           </button>
         </div>
@@ -178,132 +181,184 @@ export default function Profil() {
     )
   }
 
+  const teamColor = getTeamColor(profil.favorite_team)
+  const teamGradient = teamColor
+    ? `radial-gradient(ellipse at 15% 60%, rgba(${teamColor.rgb[0]}, ${teamColor.rgb[1]}, ${teamColor.rgb[2]}, 0.12) 0%, transparent 65%)`
+    : 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)'
+
+  const showFavorites = profil.favorite_team || topPilotes.length > 0
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div>
 
-      {/* ── Profile header ── */}
-      <div className="flex gap-5 mb-10 pb-8 border-b border-line">
-        {/* Avatar */}
-        <div className="w-20 h-20 rounded-full bg-card-hover border border-line flex items-center justify-center overflow-hidden shrink-0">
-          {profil.avatar_url ? (
-            <img src={profil.avatar_url} alt={profil.display_name} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-2xl font-black text-subtle">
-              {profil.display_name?.[0]?.toUpperCase()}
-            </span>
-          )}
-        </div>
+      {/* ── Hero header ── */}
+      <section className="relative border-b border-line">
+        <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
+        <div className="absolute inset-0" style={{ background: teamGradient }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
 
-        {/* Infos */}
-        <div className="flex-1">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-black text-white">{profil.display_name}</h1>
-              <p className="text-sm text-subtle">@{profil.username}</p>
+        {/* Team logo watermark */}
+        {profil.favorite_team && getTeamPhoto(profil.favorite_team) && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+            <div className="mx-auto max-w-4xl px-4 h-full flex items-center justify-end">
+              <img
+                src={getTeamPhoto(profil.favorite_team)}
+                alt=""
+                className="h-48 w-auto object-contain opacity-[0.06]"
+              />
             </div>
-            {isOwnProfile ? (
-              <Link
-                to="/settings"
-                className="text-xs font-medium border border-line rounded px-3 py-1.5 text-muted hover:text-white hover:border-subtle transition-colors"
-              >
-                Edit profile
-              </Link>
-            ) : user ? (
-              <button
-                onClick={handleFollow}
-                disabled={followLoading}
-                className={`text-xs font-semibold rounded px-4 py-1.5 transition-colors disabled:opacity-60 ${
-                  isFollowing
-                    ? 'border border-line text-muted hover:text-white hover:border-subtle'
-                    : 'bg-f1-red text-white hover:bg-f1-red-hover'
-                }`}
-              >
-                {isFollowing ? 'Following' : 'Follow'}
-              </button>
+          </div>
+        )}
+
+        <div className="relative mx-auto max-w-4xl px-4 py-16 flex items-center gap-8">
+          {/* Avatar */}
+          <div className="w-32 h-32 rounded-full bg-card-hover border-2 border-white/10 shadow-2xl flex items-center justify-center overflow-hidden shrink-0">
+            {profil.avatar_url ? (
+              <img src={profil.avatar_url} alt={profil.display_name} className="w-full h-full object-cover" />
             ) : (
-              <Link
-                to="/login"
-                className="text-xs font-semibold bg-f1-red rounded px-4 py-1.5 text-white hover:bg-f1-red-hover transition-colors"
-              >
-                Follow
-              </Link>
+              <span className="text-4xl font-black text-subtle">
+                {profil.display_name?.[0]?.toUpperCase()}
+              </span>
             )}
           </div>
 
-          {profil.bio && (
-            <p className="text-sm text-muted mt-2 leading-relaxed max-w-md">{profil.bio}</p>
-          )}
-
-          {/* Stats */}
-          <div className="flex items-center gap-5 mt-4">
-            {[
-              { label: 'Ratings', value: stats.notes },
-              { label: 'Reviews', value: stats.critiques },
-              { label: 'Followers', value: stats.abonnes },
-              { label: 'Following', value: stats.abonnements },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <p className="text-sm font-bold text-white">{stat.value}</p>
-                <p className="text-xs text-subtle">{stat.label}</p>
-              </div>
-            ))}
+          {/* Infos */}
+          <div className="flex-1 space-y-2 min-w-0">
+            <h1 className="text-4xl font-black text-white leading-tight">{profil.display_name}</h1>
+            <p className="text-base text-subtle">@{profil.username}</p>
+            {profil.bio && (
+              <p className="text-base text-muted leading-relaxed max-w-lg pt-1">{profil.bio}</p>
+            )}
+            <div className="flex items-center gap-6 pt-2">
+              {[
+                { label: 'Ratings', value: stats.notes },
+                { label: 'Reviews', value: stats.critiques },
+                { label: 'Followers', value: stats.abonnes },
+                { label: 'Following', value: stats.abonnements },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <p className="text-lg font-black text-white">{stat.value}</p>
+                  <p className="text-xs text-subtle">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="pt-2">
+              {isOwnProfile ? (
+                <Link
+                  to="/settings"
+                  className="inline-block text-sm font-medium border border-line rounded px-4 py-2 text-muted hover:text-white hover:border-subtle transition-colors cursor-pointer"
+                >
+                  Edit profile
+                </Link>
+              ) : user ? (
+                <button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  className={`text-sm font-semibold rounded px-5 py-2 transition-colors disabled:opacity-60 cursor-pointer ${
+                    isFollowing
+                      ? 'border border-line text-muted hover:text-white hover:border-subtle'
+                      : 'bg-f1-red text-white hover:bg-f1-red-hover'
+                  }`}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="inline-block text-sm font-semibold bg-f1-red rounded px-5 py-2 text-white hover:bg-f1-red-hover transition-colors"
+                >
+                  Follow
+                </Link>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* ── Favorites ── */}
-      {(profil.favorite_team || topPilotes.length > 0) && (
-        <section className="mb-10">
-          <div className="grid sm:grid-cols-2 gap-6">
-            {profil.favorite_team && (
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">
-                  Favorite Team
-                </h3>
-                <div className="rounded-lg border border-line bg-card px-4 py-3">
-                  <p className="text-sm font-semibold text-white">{profil.favorite_team}</p>
-                </div>
-              </div>
-            )}
-            {topPilotes.length > 0 && (
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">
-                  Top 3 Drivers
-                </h3>
-                <div className="space-y-2">
-                  {topPilotes.map((p, i) => (
-                    <Link
-                      key={p.id}
-                      to={`/pilotes/${p.id}`}
-                      className="flex items-center gap-3 rounded-lg border border-line bg-card px-4 py-2.5 hover:border-subtle hover:bg-card-hover transition-colors"
-                    >
-                      <span className="text-xs font-black text-f1-red w-4">{i + 1}</span>
-                      <span className="text-sm font-medium text-white">
-                        {p.given_name} {p.family_name}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ── Latest Reviews ── */}
-      <section>
-        <h2 className="text-base font-bold text-white mb-4">Latest Reviews</h2>
-        {dernieresReviews.length > 0 ? (
-          <div className="space-y-3">
-            {dernieresReviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-subtle">No reviews yet.</p>
-        )}
       </section>
 
+      <div className="mx-auto max-w-4xl px-4 py-10 space-y-10">
+
+        {/* ── Favorites ── */}
+        {showFavorites && (
+          <section>
+            <h2 className="text-lg font-bold text-white mb-5">Favorites</h2>
+            {/* Top 3 drivers */}
+            {topPilotes.length > 0 && (
+              <div className="flex gap-4 mb-4">
+                {topPilotes.map((driver, i) => {
+                  const photo = getDriverPhoto(driver)
+                  return (
+                    <Link key={driver.id} to={`/pilotes/${driver.id}`} className="flex-1 group">
+                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden border border-line bg-card-hover">
+                        {photo ? (
+                          <img
+                            src={photo}
+                            alt={`${driver.given_name} ${driver.family_name}`}
+                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-card-hover to-card">
+                            <span className="text-2xl font-black text-subtle">
+                              {driver.given_name?.[0]}{driver.family_name?.[0]}
+                            </span>
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-3">
+                          <p className="text-xs font-bold text-white truncate">{driver.family_name}</p>
+                          <p className="text-[10px] text-white/60 truncate">{driver.given_name}</p>
+                        </div>
+                      </div>
+                      <p className="text-center text-sm font-black text-f1-red mt-2">{i + 1}</p>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Favorite team */}
+            {profil.favorite_team && (() => {
+              const teamPhoto = getTeamPhoto(profil.favorite_team)
+              return (
+                <div
+                  className="rounded-lg border px-6 py-4 flex items-center gap-6"
+                  style={{
+                    borderColor: teamColor ? `${teamColor.hex}50` : '#262626',
+                    background: teamColor
+                      ? `linear-gradient(135deg, rgba(${teamColor.rgb[0]},${teamColor.rgb[1]},${teamColor.rgb[2]},0.08) 0%, #141414 100%)`
+                      : '#141414',
+                  }}
+                >
+                  {teamPhoto && (
+                    <img
+                      src={teamPhoto}
+                      alt={profil.favorite_team}
+                      className="h-10 w-auto object-contain shrink-0"
+                    />
+                  )}
+                  <div>
+                    <p className="text-xs text-subtle mb-0.5">Favorite Team</p>
+                    <p className="text-lg font-black text-white">{profil.favorite_team}</p>
+                  </div>
+                </div>
+              )
+            })()}
+          </section>
+        )}
+
+        {/* ── Latest Reviews ── */}
+        <section>
+          <h2 className="text-lg font-bold text-white mb-5">Latest Reviews</h2>
+          {dernieresReviews.length > 0 ? (
+            <div className="space-y-3">
+              {dernieresReviews.map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-subtle">No reviews yet.</p>
+          )}
+        </section>
+
+      </div>
     </div>
   )
 }

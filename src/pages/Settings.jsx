@@ -6,18 +6,15 @@ import { useAuth } from '../hooks/useAuth'
 const F1_TEAMS = [
   'Alpine',
   'Aston Martin',
+  'Audi',
+  'Cadillac',
   'Ferrari',
-  'Haas F1 Team',
-  'Kick Sauber',
+  'Haas',
   'McLaren',
   'Mercedes',
   'Racing Bulls',
   'Red Bull Racing',
   'Williams',
-  // Former teams (2020-2024)
-  'Alfa Romeo',
-  'AlphaTauri',
-  'Renault',
 ]
 
 export default function Settings() {
