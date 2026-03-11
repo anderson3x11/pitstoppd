@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { getCountryFlag } from '../lib/countryFlags'
 
+const TODAY = new Date().toISOString().split('T')[0]
+
 function ReviewCard({ review, isLiked, onLike, isOwn }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
 
@@ -132,6 +134,11 @@ export default function GrandPrix() {
   const [reviewCount, setReviewCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  const [isFuture, setIsFuture] = useState(false)
+  const [followingIds, setFollowingIds] = useState(new Set())
+  const [reviewSort, setReviewSort] = useState('likes')
+  const [showAllFollowing, setShowAllFollowing] = useState(false)
+
   const [userRating, setUserRating] = useState(null)
   const [userReview, setUserReview] = useState(null)
   const [userLikes, setUserLikes] = useState(new Set())
@@ -143,6 +150,10 @@ export default function GrandPrix() {
 
   useEffect(() => {
     setLoading(true)
+    setIsFuture(false)
+    setFollowingIds(new Set())
+    setReviewSort('likes')
+    setShowAllFollowing(false)
     setUserRating(null)
     setUserReview(null)
     setUserLikes(new Set())
@@ -156,6 +167,13 @@ export default function GrandPrix() {
       if (!raceData) { setLoading(false); return }
       setRace(raceData)
 
+      // Block future GPs
+      if (raceData.date > TODAY) {
+        setIsFuture(true)
+        setLoading(false)
+        return
+      }
+
       const { data: rdData } = await supabase
         .from('race_drivers')
         .select('position, grid_position, status, driver_id, drivers(id, given_name, family_name)')
@@ -166,6 +184,13 @@ export default function GrandPrix() {
       if (ratingsData?.length) {
         const avg = ratingsData.reduce((s, r) => s + r.score, 0) / ratingsData.length
         setAvgRating(Math.round(avg * 10) / 10)
+      }
+
+      // Fetch following IDs if logged in
+      if (user) {
+        const { data: followsData } = await supabase
+          .from('follows').select('following_id').eq('follower_id', user.id)
+        setFollowingIds(new Set((followsData ?? []).map((f) => f.following_id)))
       }
 
       const { data: reviewsData } = await supabase
@@ -222,7 +247,7 @@ export default function GrandPrix() {
   }, [saison, slug, user?.id])
 
   const handleRating = async (score) => {
-    if (!user || !race) return
+    if (!user || !race || isFuture) return
     setUserRating(score)
     await supabase.from('ratings').upsert(
       { user_id: user.id, race_id: race.id, score },
@@ -239,7 +264,7 @@ export default function GrandPrix() {
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault()
-    if (!user || !race || !reviewForm.content.trim()) return
+    if (!user || !race || !reviewForm.content.trim() || isFuture) return
     setReviewSubmitting(true)
     if (userReview) {
       await supabase.from('reviews').update({ content: reviewForm.content, spoiler: reviewForm.spoiler }).eq('id', userReview.id)
@@ -285,6 +310,25 @@ export default function GrandPrix() {
 
   if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
   if (!race) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Grand Prix not found.</p></div>
+  if (isFuture) {
+    const futureDate = new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10">
+        <div className="flex items-center gap-2 text-sm text-subtle mb-6">
+          <Link to="/gps" className="hover:text-white transition-colors">GPs</Link>
+          <span>/</span>
+          <Link to={`/saisons/${saison}`} className="hover:text-white transition-colors">{saison}</Link>
+        </div>
+        <h1 className="text-5xl font-black text-white leading-tight mb-3">{race.name}</h1>
+        <p className="text-lg text-muted mb-2 capitalize">{futureDate}</p>
+        <p className="text-lg text-muted mb-8">{race.circuit} · {race.country}</p>
+        <div className="rounded-lg border border-line bg-card p-8 text-center space-y-2">
+          <p className="text-white font-semibold">This Grand Prix hasn't taken place yet</p>
+          <p className="text-sm text-subtle">Come back after the race to rate and review it.</p>
+        </div>
+      </div>
+    )
+  }
 
   const formattedDate = new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const classement = [...raceDrivers].filter((rd) => rd.position != null).sort((a, b) => a.position - b.position)
@@ -450,40 +494,86 @@ export default function GrandPrix() {
         </div>
 
         {/* Right column — Reviews */}
-        <div className="col-span-2">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-bold text-white">
-              Reviews <span className="text-subtle font-normal text-sm">({reviewCount})</span>
-            </h2>
-            {/* Mobile-only button ("My Activity" card is hidden on mobile) */}
-            {user && (
-              <button
-                onClick={handleOpenReviewModal}
-                className="sm:hidden rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors cursor-pointer"
-              >
-                {userReview ? 'Edit' : 'Write'}
-              </button>
+        <div className="col-span-2 space-y-8">
+
+          {/* Following reviews */}
+          {user && followingIds.size > 0 && (() => {
+            const followingReviews = reviews.filter((r) => followingIds.has(r.user_id))
+            if (followingReviews.length === 0) return null
+            const displayed = showAllFollowing ? followingReviews : followingReviews.slice(0, 3)
+            return (
+              <div>
+                <h2 className="text-lg font-bold text-white mb-5">Following</h2>
+                <div className="space-y-4">
+                  {displayed.map((r) => (
+                    <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={handleLike} isOwn={user?.id === r.user_id} />
+                  ))}
+                </div>
+                {followingReviews.length > 3 && (
+                  <button
+                    onClick={() => setShowAllFollowing((v) => !v)}
+                    className="mt-3 text-sm text-muted underline underline-offset-4 hover:text-white transition-colors cursor-pointer"
+                  >
+                    {showAllFollowing ? 'Show less' : `Show all ${followingReviews.length}`}
+                  </button>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* All reviews */}
+          <div>
+            <div className="flex items-center justify-between mb-5 gap-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-white">
+                  Reviews <span className="text-subtle font-normal text-sm">({reviewCount})</span>
+                </h2>
+                {user && (
+                  <button
+                    onClick={handleOpenReviewModal}
+                    className="sm:hidden rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors cursor-pointer"
+                  >
+                    {userReview ? 'Edit' : 'Write'}
+                  </button>
+                )}
+              </div>
+              {reviews.length > 1 && (
+                <div className="flex items-center gap-1 rounded-lg border border-line bg-card p-1 shrink-0">
+                  {[{ key: 'likes', label: 'Most liked' }, { key: 'date', label: 'Latest' }].map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setReviewSort(opt.key)}
+                      className={`px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${reviewSort === opt.key ? 'bg-card-hover text-white' : 'text-subtle hover:text-muted'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {!user && (
+              <div className="mb-5 rounded-lg border border-line bg-card p-4 flex items-center justify-between gap-4">
+                <p className="text-sm text-muted">Sign in to write a review.</p>
+                <Link to="/login" className="text-sm font-medium text-f1-red hover:text-f1-red-hover transition-colors shrink-0">
+                  Sign in
+                </Link>
+              </div>
+            )}
+
+            {reviews.length > 0 ? (
+              <div className="space-y-4">
+                {[...reviews]
+                  .sort((a, b) => reviewSort === 'likes' ? (b.likes ?? 0) - (a.likes ?? 0) : new Date(b.created_at) - new Date(a.created_at))
+                  .map((r) => (
+                    <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={user ? handleLike : undefined} isOwn={user?.id === r.user_id} />
+                  ))}
+              </div>
+            ) : (
+              <p className="text-sm text-subtle">No reviews yet.</p>
             )}
           </div>
 
-          {!user && (
-            <div className="mb-5 rounded-lg border border-line bg-card p-4 flex items-center justify-between gap-4">
-              <p className="text-sm text-muted">Sign in to write a review.</p>
-              <Link to="/login" className="text-sm font-medium text-f1-red hover:text-f1-red-hover transition-colors shrink-0">
-                Sign in
-              </Link>
-            </div>
-          )}
-
-          {reviews.length > 0 ? (
-            <div className="space-y-4">
-              {reviews.map((r) => (
-                <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={user ? handleLike : undefined} isOwn={user?.id === r.user_id} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-subtle">No reviews yet.</p>
-          )}
         </div>
 
       </div>

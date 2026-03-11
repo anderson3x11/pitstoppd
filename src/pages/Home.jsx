@@ -8,44 +8,39 @@ import { getCountryFlag } from '../lib/countryFlags'
 
 const TODAY = new Date().toISOString().split('T')[0]
 
-function FeedCard({ review }) {
-  const [spoilerVisible, setSpoilerVisible] = useState(false)
-
-  const formattedDate = new Date(review.created_at).toLocaleDateString('en-US', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  })
-
+function FeedCard({ entry }) {
   return (
-    <div className="rounded-lg border border-line bg-card p-4 space-y-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-0.5">
-          <Link to={`/${review.username}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors">
-            {review.displayName}
-          </Link>
-          <p className="text-xs text-subtle">
-            <Link to={`/gps/${review.raceSeason}/${review.raceSlug}`} className="hover:text-white transition-colors">
-              {review.raceName}
-            </Link>
-            {' · '}{formattedDate}
-          </p>
-        </div>
-        {review.rating != null && <StarRating value={review.rating} size="sm" showValue />}
+    <Link to={`/gps/${entry.raceSeason}/${entry.raceSlug}`} className="group rounded-lg border border-line bg-card flex overflow-hidden hover:border-subtle transition-colors">
+      {/* Poster */}
+      <div className="w-20 shrink-0 bg-card-hover overflow-hidden">
+        {entry.posterUrl ? (
+          <img src={entry.posterUrl} alt={entry.raceName} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center">
+            <span className="text-2xl">{getCountryFlag(entry.raceCountry)}</span>
+          </div>
+        )}
       </div>
 
-      {review.spoiler && !spoilerVisible ? (
-        <div className="rounded bg-card-hover border border-line px-3 py-2 text-center">
-          <p className="text-xs text-subtle mb-1">Contains spoilers</p>
-          <button
-            onClick={() => setSpoilerVisible(true)}
-            className="text-xs font-medium text-muted hover:text-white transition-colors"
+      {/* Infos */}
+      <div className="flex-1 px-3 py-3 flex flex-col justify-between min-w-0">
+        <div>
+          <p className="text-xs text-subtle truncate">{entry.raceName}</p>
+          <Link
+            to={`/${entry.username}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-sm font-semibold text-white hover:text-f1-red transition-colors truncate block"
           >
-            Show anyway
-          </button>
+            {entry.displayName}
+          </Link>
         </div>
-      ) : (
-        <p className="text-sm text-muted leading-relaxed line-clamp-3">{review.content}</p>
-      )}
-    </div>
+        {entry.rating != null && (
+          <div className="mt-2">
+            <StarRating value={entry.rating} size="sm" showValue />
+          </div>
+        )}
+      </div>
+    </Link>
   )
 }
 
@@ -84,40 +79,33 @@ export default function Home() {
 
       const followingIds = followsData.map((f) => f.following_id)
 
-      const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('id, content, spoiler, created_at, user_id, race_id, races(name, season, slug)')
+      const { data: ratingsData } = await supabase
+        .from('ratings')
+        .select('id, score, created_at, user_id, race_id, races(name, season, slug, poster_url, country)')
         .in('user_id', followingIds)
         .order('created_at', { ascending: false })
-        .limit(9)
+        .limit(6)
 
-      if (!reviewsData?.length) { setFeedLoading(false); return }
+      if (!ratingsData?.length) { setFeedLoading(false); return }
 
-      const userIds = [...new Set(reviewsData.map((r) => r.user_id))]
-      const raceIds = [...new Set(reviewsData.map((r) => r.race_id).filter(Boolean))]
-
-      const [{ data: profilesData }, { data: ratingsData }] = await Promise.all([
-        supabase.from('profiles').select('id, username, display_name').in('id', userIds),
-        supabase.from('ratings').select('user_id, race_id, score').in('user_id', userIds).in('race_id', raceIds),
-      ])
+      const userIds = [...new Set(ratingsData.map((r) => r.user_id))]
+      const { data: profilesData } = await supabase
+        .from('profiles').select('id, username, display_name').in('id', userIds)
 
       const profileMap = {}
       for (const p of profilesData ?? []) profileMap[p.id] = p
 
-      const ratingMap = {}
-      for (const r of ratingsData ?? []) ratingMap[`${r.user_id}_${r.race_id}`] = r.score
-
-      setFeedReviews(reviewsData.map((r) => ({
+      setFeedReviews(ratingsData.map((r) => ({
         id: r.id,
-        content: r.content,
-        spoiler: r.spoiler,
         created_at: r.created_at,
         username: profileMap[r.user_id]?.username,
         displayName: profileMap[r.user_id]?.display_name,
         raceName: r.races?.name,
         raceSeason: r.races?.season,
         raceSlug: r.races?.slug,
-        rating: ratingMap[`${r.user_id}_${r.race_id}`] ?? null,
+        posterUrl: r.races?.poster_url ?? null,
+        raceCountry: r.races?.country ?? null,
+        rating: r.score,
       })))
 
       setFeedLoading(false)
@@ -187,15 +175,15 @@ export default function Home() {
 
       <div className="mx-auto max-w-4xl px-4 py-12 space-y-14">
 
-        {/* ── Friends' Reviews ── */}
+        {/* ── Following ── */}
         <section>
-          <h2 className="text-lg font-bold mb-4">Friends' Reviews</h2>
+          <h2 className="text-lg font-bold mb-4">Following</h2>
           {user ? (
             feedLoading ? (
               <p className="text-muted text-sm">Loading…</p>
             ) : feedReviews.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {feedReviews.map((r) => <FeedCard key={r.id} review={r} />)}
+                {feedReviews.map((r) => <FeedCard key={r.id} entry={r} />)}
               </div>
             ) : (
               <div className="rounded-lg border border-line bg-card p-6 text-center space-y-2">

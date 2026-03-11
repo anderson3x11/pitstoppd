@@ -40,26 +40,66 @@ export default function GrandsPrix() {
     setLoading(true)
     setError(null)
 
-    supabase
-      .from('races')
-      .select('id, season, round, name, slug, circuit, country, date, poster_url')
-      .eq('season', saisonActive)
-      .lt('date', TODAY)
-      .order('date', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) setError(error.message)
-        else setGps(data ?? [])
-        setLoading(false)
-      })
-  }, [saisonActive])
+    const fetchData = async () => {
+      const { data: racesData, error: racesError } = await supabase
+        .from('races')
+        .select('id, season, round, name, slug, circuit, country, date, poster_url')
+        .eq('season', saisonActive)
+        .lt('date', TODAY)
+        .order('date', { ascending: false })
 
-  // Map Supabase column names to GPCard props
-  const gpCards = gps.map((gp) => ({
-    ...gp,
-    posterUrl: gp.poster_url,
-    avgRating: null,
-    reviewCount: null,
-  }))
+      if (racesError) {
+        setError(racesError.message)
+        setLoading(false)
+        return
+      }
+
+      const races = racesData ?? []
+
+      if (races.length === 0) {
+        setGps([])
+        setLoading(false)
+        return
+      }
+
+      const raceIds = races.map((r) => r.id)
+
+      const { data: ratingsData } = await supabase
+        .from('ratings')
+        .select('race_id, score')
+        .in('race_id', raceIds)
+
+      const ratings = ratingsData ?? []
+
+      // Group ratings by race_id
+      const ratingsByRace = {}
+      for (const rating of ratings) {
+        if (!ratingsByRace[rating.race_id]) ratingsByRace[rating.race_id] = []
+        ratingsByRace[rating.race_id].push(rating.score)
+      }
+
+      const enriched = races.map((gp) => {
+        const scores = ratingsByRace[gp.id] ?? []
+        const reviewCount = scores.length
+        const avgRating =
+          reviewCount > 0
+            ? Math.round((scores.reduce((sum, s) => sum + s, 0) / reviewCount) * 10) / 10
+            : null
+
+        return {
+          ...gp,
+          posterUrl: gp.poster_url,
+          avgRating,
+          reviewCount,
+        }
+      })
+
+      setGps(enriched)
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [saisonActive])
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -108,9 +148,9 @@ export default function GrandsPrix() {
         <div className="text-center py-20 text-muted">
           <p>Loading…</p>
         </div>
-      ) : gpCards.length > 0 ? (
+      ) : gps.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {gpCards.map((gp) => (
+          {gps.map((gp) => (
             <GPCard key={gp.id} gp={gp} />
           ))}
         </div>
