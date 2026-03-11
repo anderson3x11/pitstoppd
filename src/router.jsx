@@ -8,6 +8,7 @@ import Saison from './pages/Saison'
 import Pilotes from './pages/Pilotes'
 import Pilote from './pages/Pilote'
 import Profil from './pages/Profil'
+import ProfilReviews from './pages/ProfilReviews'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
       // /:username doit être en dernier (route dynamique catch-all)
+      { path: ':username/reviews', element: <ProfilReviews /> },
       { path: ':username', element: <Profil /> },
     ],
   },
