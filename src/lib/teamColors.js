@@ -16,6 +16,7 @@ const TEAM_COLORS = {
   'AlphaTauri':    { hex: '#6692FF', rgb: [102, 146, 255] },
   'Alfa Romeo':    { hex: '#900000', rgb: [144, 0, 0] },
   'Renault':       { hex: '#FFF500', rgb: [255, 245, 0] },
+  'Brawn':         { hex: '#C5F72E', rgb: [197, 247, 46] },
 }
 
 export function getTeamColor(teamName) {

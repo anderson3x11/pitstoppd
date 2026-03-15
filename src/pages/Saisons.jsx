@@ -6,7 +6,7 @@ import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
 
 const TODAY = new Date().toISOString().split('T')[0]
-const FIRST_SEASON = 2020
+const FIRST_SEASON = 2000
 
 const CHAMPIONS = {
   2025: { driver: 'Lando Norris', team: 'McLaren' },
@@ -15,6 +15,26 @@ const CHAMPIONS = {
   2022: { driver: 'Max Verstappen', team: 'Red Bull' },
   2021: { driver: 'Max Verstappen', team: 'Red Bull' },
   2020: { driver: 'Lewis Hamilton', team: 'Mercedes' },
+  2019: { driver: 'Lewis Hamilton', team: 'Mercedes' },
+  2018: { driver: 'Lewis Hamilton', team: 'Mercedes' },
+  2017: { driver: 'Lewis Hamilton', team: 'Mercedes' },
+  2016: { driver: 'Nico Rosberg', team: 'Mercedes' },
+  2015: { driver: 'Lewis Hamilton', team: 'Mercedes' },
+  2014: { driver: 'Lewis Hamilton', team: 'Mercedes' },
+  2013: { driver: 'Sebastian Vettel', team: 'Red Bull' },
+  2012: { driver: 'Sebastian Vettel', team: 'Red Bull' },
+  2011: { driver: 'Sebastian Vettel', team: 'Red Bull' },
+  2010: { driver: 'Sebastian Vettel', team: 'Red Bull' },
+  2009: { driver: 'Jenson Button', team: 'Brawn' },
+  2008: { driver: 'Lewis Hamilton', team: 'McLaren' },
+  2007: { driver: 'Kimi Räikkönen', team: 'Ferrari' },
+  2006: { driver: 'Fernando Alonso', team: 'Renault' },
+  2005: { driver: 'Fernando Alonso', team: 'Renault' },
+  2004: { driver: 'Michael Schumacher', team: 'Ferrari' },
+  2003: { driver: 'Michael Schumacher', team: 'Ferrari' },
+  2002: { driver: 'Michael Schumacher', team: 'Ferrari' },
+  2001: { driver: 'Michael Schumacher', team: 'Ferrari' },
+  2000: { driver: 'Michael Schumacher', team: 'Ferrari' },
 }
 
 export default function Saisons() {
@@ -96,7 +116,7 @@ export default function Saisons() {
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="mb-10">
         <h1 className="text-3xl font-black text-white">Seasons</h1>
-        <p className="text-sm text-muted mt-1">F1 from 2020 to present</p>
+        <p className="text-sm text-muted mt-1">F1 from 2000 to present</p>
       </div>
 
       {loading ? (

@@ -31,17 +31,19 @@ export default function Pilote() {
 
       const { data: rdData } = await supabase
         .from('race_drivers')
-        .select('position, grid_position, status, races(id, season, name, slug, date)')
+        .select('position, grid_position, status, races(id, season, name, slug, date, race_type)')
         .eq('driver_id', id)
 
       const sorted = (rdData ?? [])
         .filter((rd) => rd.races?.date)
         .sort((a, b) => new Date(b.races.date) - new Date(a.races.date))
 
+      const racesOnly = sorted.filter((rd) => rd.races.race_type === 'race')
+
       setStats({
-        wins: sorted.filter((rd) => rd.position === 1).length,
-        podiums: sorted.filter((rd) => rd.position != null && rd.position <= 3).length,
-        courses: sorted.length,
+        wins: racesOnly.filter((rd) => rd.position === 1).length,
+        podiums: racesOnly.filter((rd) => rd.position != null && rd.position <= 3).length,
+        courses: racesOnly.length,
       })
 
       setDerniersGPs(sorted.filter((rd) => rd.races.date < TODAY).slice(0, 10))
@@ -146,7 +148,7 @@ export default function Pilote() {
         {/* ── Stats ── */}
         <section>
           <h2 className="text-lg font-bold text-white mb-5">
-            Statistics <span className="text-subtle font-normal text-sm">(2020–present)</span>
+            Statistics <span className="text-subtle font-normal text-sm">(2000–present)</span>
           </h2>
           <div className={`grid gap-3 ${statsList.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             {statsList.map((stat) => (

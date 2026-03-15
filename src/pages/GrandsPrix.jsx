@@ -4,7 +4,7 @@ import GPCard from '../components/GPCard'
 import { supabase } from '../lib/supabase'
 
 const TODAY = new Date().toISOString().split('T')[0]
-const FIRST_SEASON = 2020
+const FIRST_SEASON = 2000
 
 function buildSeasonsList(latestSeason) {
   const seasons = []
@@ -114,20 +114,17 @@ export default function GrandsPrix() {
       </div>
 
       {/* Season filter */}
-      <div className="flex items-center gap-2 mb-8 flex-wrap">
-        {seasons.map((s) => (
-          <button
-            key={s}
-            onClick={() => setSaisonActive(s)}
-            className={`cursor-pointer rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-              saisonActive === s
-                ? 'bg-f1-red text-white'
-                : 'bg-card border border-line text-muted hover:text-white hover:border-subtle'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="mb-8">
+        <select
+          value={saisonActive}
+          onChange={(e) => setSaisonActive(Number(e.target.value))}
+          className="appearance-none cursor-pointer rounded-lg bg-card border border-line text-white text-sm font-medium px-4 py-2 pr-8 hover:border-subtle focus:outline-none focus:border-f1-red transition-colors"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a3a3a3' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center' }}
+        >
+          {seasons.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
       </div>
 
       {/* Link to season page */}

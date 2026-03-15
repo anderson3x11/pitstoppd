@@ -2,16 +2,8 @@
 
 ## En cours / prioritaire
 
-### Page review individuelle
-Quand un user clique sur un GP noté dans le feed "Following" de la home, il devrait atterrir sur la review spécifique de la personne qu'il follow (pas juste la page GP).
-- Route : `/:username/reviews/:raceSlug` ou modal overlay sur la page GP
-- Lier les FeedCards de la home vers cette page
-
-### Refaire la page Seasons
-La page saison actuelle est basique. À retravailler :
-- Vue d'ensemble de la saison (champion, équipe championne, stats clés)
-- Liste des GPs avec notes moyennes et résultats
-- Classement pilotes / constructeurs de la saison
+### Photos pilotes historiques (2000–2019)
+Le seed historique a ajouté ~200+ pilotes sans photos. Récupérer les portraits via Wikipedia API ou autre source, puis mettre à jour `photo_url` dans la table `drivers`.
 
 ---
 
@@ -23,9 +15,10 @@ La page saison actuelle est basique. À retravailler :
 
 ### Page GP
 - Section "You might also like" → GPs similaires (même circuit, même saison)
-- Pouvoir supprimer une note (actuellement on peut modifier mais pas supprimer)
+- Récap vidéo officiel F1 du GP (YouTube embed)
 
 ### Settings
+- Sélection top 3 pilotes à améliorer (autocomplete)
 - Préférences spoilers (toujours masquer / toujours afficher par défaut)
 - Compte privé (reviews/ratings visibles uniquement par les abonnés)
 
@@ -35,9 +28,18 @@ La page saison actuelle est basique. À retravailler :
 
 ---
 
+## Done
+
+- ~~Page review individuelle~~ → `/gps/:saison/:slug/review/:username`
+- ~~Refaire la page Seasons~~ → cards avec gradient champion, standings live
+- ~~Supprimer une note~~ → bouton Remove sur la page GP
+- ~~Extension saisons 2000–2019~~ → seed-historical.js, dropdown saisons, stats hors sprints, card champion dorée
+
+---
+
 ## Dette technique / polish
 
 - Page 404 propre
 - Responsive mobile à vérifier sur toutes les pages
 - Skeleton loaders à la place des "Loading…" textuels
-- Saison page Pilotes : filtrer par saison active
+- Home hero : trouver une image de fond

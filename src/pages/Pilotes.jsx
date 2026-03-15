@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getDriverPhoto } from '../lib/driverPhotos'
 
-function PiloteCard({ pilote, wins }) {
+function PiloteCard({ pilote, wins, isChampion }) {
   const initiales = [pilote.given_name, pilote.family_name]
     .filter(Boolean)
     .map((n) => n[0])
@@ -11,7 +11,7 @@ function PiloteCard({ pilote, wins }) {
 
   return (
     <Link to={`/pilotes/${pilote.id}`} className="group block">
-      <div className="rounded-lg overflow-hidden bg-card border border-line transition-colors duration-150 hover:border-subtle">
+      <div className={`rounded-lg overflow-hidden bg-card border transition-colors duration-150 ${isChampion ? 'border-2 border-yellow-500/70 hover:border-yellow-400 ring-2 ring-yellow-500/20' : 'border-line hover:border-subtle'}`}>
 
         {/* Visuel */}
         <div className="aspect-[2/3] bg-card-hover relative overflow-hidden">
@@ -83,11 +83,12 @@ export default function Pilotes() {
           .select('driver_id, races!inner(season)')
           .eq('races.season', season),
 
-        // All wins
+        // All wins (races only, not sprints)
         supabase
           .from('race_drivers')
-          .select('driver_id')
-          .eq('position', 1),
+          .select('driver_id, races!inner(race_type)')
+          .eq('position', 1)
+          .eq('races.race_type', 'race'),
       ])
 
       const ids = new Set(currentData?.map((r) => r.driver_id) ?? [])
@@ -142,7 +143,7 @@ export default function Pilotes() {
         <div className="flex-1">
           <h1 className="text-2xl font-black text-white">Drivers</h1>
           <p className="text-sm text-muted mt-1">
-            {loading ? 'Loading…' : `${drivers.length} drivers · 2020–${latestSeason} seasons`}
+            {loading ? 'Loading…' : `${drivers.length} drivers · 2000–${latestSeason} seasons`}
           </p>
         </div>
         <input
@@ -167,7 +168,7 @@ export default function Pilotes() {
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {current.map((p) => (
-                  <PiloteCard key={p.id} pilote={p} wins={winsMap[p.id] ?? 0} />
+                  <PiloteCard key={p.id} pilote={p} wins={winsMap[p.id] ?? 0} isChampion={p.number === 1} />
                 ))}
               </div>
             </section>
