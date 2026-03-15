@@ -43,7 +43,7 @@ export default function GrandsPrix() {
     const fetchData = async () => {
       const { data: racesData, error: racesError } = await supabase
         .from('races')
-        .select('id, season, round, name, slug, circuit, country, date, poster_url')
+        .select('id, season, round, name, slug, circuit, country, date, poster_url, race_type')
         .eq('season', saisonActive)
         .lt('date', TODAY)
         .order('date', { ascending: false })
@@ -89,6 +89,7 @@ export default function GrandsPrix() {
         return {
           ...gp,
           posterUrl: gp.poster_url,
+          raceType: gp.race_type,
           avgRating,
           reviewCount,
         }

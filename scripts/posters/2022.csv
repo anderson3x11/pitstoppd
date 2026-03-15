@@ -1,54 +1,24 @@
 idEvent,dateEvent,Round,strEvent,strPoster,strThumb
-1530873,2022-03-10,Round 1,Bahrain Pre Season Test Day 1 Afternoon,,
-1530872,2022-03-10,Round 1,Bahrain Pre Season Test Day 1 Morning,,
-1531283,2022-03-11,Round 1,Bahrain Pre Season Test Day 2 Afternoon,,
-1531282,2022-03-11,Round 1,Bahrain Pre Season Test Day 2 Morning,,
-1531406,2022-03-12,Round 1,Bahrain Pre Season Test Day 3 Morning,,
-1531405,2022-03-12,Round 1,Bahrain Pre Season Test Day 3 Afternoon,,
-1537207,2022-03-19,Round 1,Bahrain Grand Prix Qualifying,,https://r2.thesportsdb.com/images/media/event/thumb/2h44ez1577550651.jpg
 1448310,2022-03-20,Round 1,Bahrain Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/pph39b1643140542.jpg,https://r2.thesportsdb.com/images/media/event/thumb/be4tnb1643203505.jpg
-1539789,2022-03-26,Round 2,Saudi Arabian Grand Prix Qualifying,,
 1448311,2022-03-27,Round 2,Saudi Arabian Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/6jlos01643140564.jpg,https://r2.thesportsdb.com/images/media/event/thumb/1625zv1643203698.jpg
-1546140,2022-04-09,Round 3,Australian Grand Prix Qualifying,,https://r2.thesportsdb.com/images/media/event/thumb/bp28771577552268.jpg
 1448312,2022-04-10,Round 3,Australian Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/rkhi471643140580.jpg,https://r2.thesportsdb.com/images/media/event/thumb/dvjq4c1643204388.jpg
-1550085,2022-04-22,Round 4,Gran Premio dellEmilia Romagna Qualifying,https://r2.thesportsdb.com/images/media/event/poster/5qbj791649929911.jpg,
 1550093,2022-04-23,Round 4,Gran Premio dellEmilia Romagna Sprint,https://r2.thesportsdb.com/images/media/event/poster/nz5u461649929899.jpg,
 1448313,2022-04-24,Round 4,Gran Premio dell'Emilia Romagna,https://r2.thesportsdb.com/images/media/event/poster/t9pb7t1643140596.jpg,https://r2.thesportsdb.com/images/media/event/thumb/gcaa7r1643204548.jpg
-1564965,2022-05-07,Round 5,Miami Grand Prix Qualifying,,
 1448314,2022-05-08,Round 5,Miami Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/lk6qno1643141652.jpg,https://r2.thesportsdb.com/images/media/event/thumb/svjbjt1643205242.jpg
-1566785,2022-05-21,Round 6,Spanish Grand Prix Qualifying,,https://r2.thesportsdb.com/images/media/event/thumb/ojqyu61577552934.jpg
 1448315,2022-05-22,Round 6,Gran Premio De Espana,https://r2.thesportsdb.com/images/media/event/poster/ahlvi71643140628.jpg,https://r2.thesportsdb.com/images/media/event/thumb/adgfxz1643205386.jpg
-1568238,2022-05-28,Round 7,Monaco Grand Prix Qualifying,https://r2.thesportsdb.com/images/media/event/poster/fa5hnd1653742279.jpg,https://r2.thesportsdb.com/images/media/event/thumb/uwsui81577553185.jpg
 1448316,2022-05-29,Round 7,Grand Prix De Monaco,https://r2.thesportsdb.com/images/media/event/poster/ruoz5o1643140661.jpg,https://r2.thesportsdb.com/images/media/event/thumb/hbliv71643205524.jpg
-1569561,2022-06-11,Round 8,Azerbaijan Grand Prix Qualifying,https://r2.thesportsdb.com/images/media/event/poster/ofmsna1654605295.jpg,https://r2.thesportsdb.com/images/media/event/thumb/vh8x3s1654605294.jpg
 1448317,2022-06-12,Round 8,Azerbaijan Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/z5a3gh1643140682.jpg,https://r2.thesportsdb.com/images/media/event/thumb/yy3n4m1614722426.jpg
-1570253,2022-06-18,Round 9,Canadian Grand Prix Qualifying,,https://r2.thesportsdb.com/images/media/event/thumb/7dqjjk1577553868.jpg
 1448318,2022-06-19,Round 9,Grand Prix Du Canada,https://r2.thesportsdb.com/images/media/event/poster/s0ot721643140705.jpg,https://r2.thesportsdb.com/images/media/event/thumb/ibtp9z1643206059.jpg
-1584772,2022-07-02,Round 10,British Grand Prix Qualifying,https://r2.thesportsdb.com/images/media/event/poster/41ebxy1626525137.jpg,https://r2.thesportsdb.com/images/media/event/thumb/z4w8rm1596271260.jpg
 1448319,2022-07-03,Round 10,British Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/ulgq0f1643140722.jpg,https://r2.thesportsdb.com/images/media/event/thumb/p2s39l1614721834.jpg
-1587605,2022-07-08,Round 11,Austrian Grand Prix Qualifying,https://r2.thesportsdb.com/images/media/event/poster/ba9i431593849940.jpg,https://r2.thesportsdb.com/images/media/event/thumb/tjbv281593850314.jpg
-1587913,2022-07-09,Round 11,Austrian Grand Prix Sprint Race,,
 1448320,2022-07-10,Round 11,Grosser Preis von Österreich,https://r2.thesportsdb.com/images/media/event/poster/sa0s3y1643140738.jpg,https://r2.thesportsdb.com/images/media/event/thumb/efcb381643206403.jpg
-1599158,2022-07-23,Round 12,French Grand Prix Qualifying,,https://r2.thesportsdb.com/images/media/event/thumb/a5wfwh1577554138.jpg
 1448321,2022-07-24,Round 12,Grand Prix De France,https://r2.thesportsdb.com/images/media/event/poster/g75w7e1643140756.jpg,https://r2.thesportsdb.com/images/media/event/thumb/c50zbt1643206610.jpg
-1625405,2022-07-30,Round 13,Magyar Nagydij Qualifying,https://r2.thesportsdb.com/images/media/event/poster/gqyjh51659108461.jpg,
 1448322,2022-07-31,Round 13,Magyar Nagydij,https://r2.thesportsdb.com/images/media/event/poster/7wit9x1643140774.jpg,https://r2.thesportsdb.com/images/media/event/thumb/8zqwn91643206813.jpg
-1641175,2022-08-27,Round 14,Belgian Grand Prix Qualifying,https://r2.thesportsdb.com/images/media/event/poster/4zwsqp1661539499.jpg,https://r2.thesportsdb.com/images/media/event/thumb/myhqs41577555566.jpg
 1448323,2022-08-28,Round 14,Belgian Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/5go1qz1643140790.jpg,https://r2.thesportsdb.com/images/media/event/thumb/0fheni1643207063.jpg
-1643377,2022-09-03,Round 15,Dutch Grand Prix Qualifying,https://r2.thesportsdb.com/images/media/event/poster/9i7fun1662119176.jpg,
 1448324,2022-09-04,Round 15,Dutch Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/fdapyk1643140806.jpg,https://r2.thesportsdb.com/images/media/event/thumb/xw43gv1643207689.jpg
-1649274,2022-09-10,Round 16,Italian Grand Prix Qualifying,,https://r2.thesportsdb.com/images/media/event/thumb/3fzkmp1577557213.jpg
-1448325,2022-09-11,Round 16,Gran Premio D’Italia,https://r2.thesportsdb.com/images/media/event/poster/wdsfsn1643140850.jpg,https://r2.thesportsdb.com/images/media/event/thumb/c6lmtd1643207806.jpg
-1652265,2022-10-01,Round 17,Singapore Grand Prix Qualifying,,
+1448325,2022-09-11,Round 16,Gran Premio D'Italia,https://r2.thesportsdb.com/images/media/event/poster/wdsfsn1643140850.jpg,https://r2.thesportsdb.com/images/media/event/thumb/c6lmtd1643207806.jpg
 1448327,2022-10-02,Round 17,Singapore Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/yqo88s1643140885.jpg,https://r2.thesportsdb.com/images/media/event/thumb/2wr4y51643208198.jpg
-1656858,2022-10-08,Round 18,Japanese Grand Prix Qualifying,,
 1448328,2022-10-09,Round 18,Japanese Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/ley7431643140904.jpg,https://r2.thesportsdb.com/images/media/event/thumb/9bo11f1643208473.jpg
-1656866,2022-10-22,Round 19,United States Grand Prix Qualifying,,
 1448329,2022-10-23,Round 19,United States Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/jgds0i1643140922.jpg,https://r2.thesportsdb.com/images/media/event/thumb/08bs351643208695.jpg
-1658700,2022-10-29,Round 20,Mexican Grand Prix Qualifying,,https://r2.thesportsdb.com/images/media/event/thumb/hx2tqa1577472184.jpg
 1448330,2022-10-30,Round 20,Gran Premio De La Ciudad De Mexico,https://r2.thesportsdb.com/images/media/event/poster/90adtf1643140942.jpg,https://r2.thesportsdb.com/images/media/event/thumb/wws60n1643208960.jpg
-1663051,2022-11-11,Round 21,Brazilian Grand Prix Qualifying,,
-1663052,2022-11-12,Round 21,Brazilian Grand Prix Sprint,,
 1448331,2022-11-13,Round 21,Grande Premio De Sao Paulo,https://r2.thesportsdb.com/images/media/event/poster/fu3jls1643140958.jpg,https://r2.thesportsdb.com/images/media/event/thumb/7f5qhr1643209286.jpg
-1663513,2022-11-19,Round 22,Abu Dhabi Grand Prix Qualifying,,
 1448332,2022-11-20,Round 22,Abu Dhabi Grand Prix,https://r2.thesportsdb.com/images/media/event/poster/rjswtl1643140979.jpg,https://r2.thesportsdb.com/images/media/event/thumb/op82qz1643209594.jpg

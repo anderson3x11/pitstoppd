@@ -12,6 +12,7 @@ import ProfilReviews from './pages/ProfilReviews'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Review from './pages/Review'
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: 'gps', element: <GrandsPrix /> },
       { path: 'gps/:saison/:slug', element: <GrandPrix /> },
+      { path: 'gps/:saison/:slug/review/:username', element: <Review /> },
       { path: 'saisons', element: <Saisons /> },
       { path: 'saisons/:annee', element: <Saison /> },
       { path: 'pilotes', element: <Pilotes /> },

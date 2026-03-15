@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
-import StarRating from './StarRating'
-import { getCountryFlag } from '../lib/countryFlags'
+import { Link } from "react-router-dom";
+import StarRating from "./StarRating";
+import { getCountryFlag } from "../lib/countryFlags";
 
 /**
  * GPCard — Grand Prix card
@@ -18,20 +18,24 @@ import { getCountryFlag } from '../lib/countryFlags'
  *  gp.reviewCount : number | null
  */
 export default function GPCard({ gp }) {
-  const href = `/gps/${gp.season}/${gp.slug}`
+  const href = `/gps/${gp.season}/${gp.slug}`;
 
   const formattedDate = gp.date
-    ? new Date(gp.date).toLocaleDateString('en-US', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
+    ? new Date(gp.date).toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       })
-    : null
+    : null;
 
   return (
-    <Link to={href} className="group block transition-transform duration-150 hover:scale-[1.02]">
-      <div className="rounded-lg overflow-hidden bg-card border border-line transition-colors duration-150 hover:border-subtle">
-
+    <Link
+      to={href}
+      className="group block transition-transform duration-150 hover:scale-[1.02]"
+    >
+      <div
+        className={`rounded-lg overflow-hidden bg-card border-2 transition-colors duration-150 ${gp.raceType === "sprint" ? "border-white/70 hover:border-white/90" : "border-line hover:border-subtle"}`}
+      >
         {/* Poster */}
         <div className="aspect-[2/3] bg-card-hover relative overflow-hidden">
           {gp.posterUrl ? (
@@ -43,11 +47,18 @@ export default function GPCard({ gp }) {
           ) : (
             // Styled placeholder when no image
             <div className="h-full w-full flex flex-col items-center justify-center p-3 bg-gradient-to-b from-card-hover to-card">
-              <span className="text-4xl mb-2">{getCountryFlag(gp.country)}</span>
+              <span className="text-4xl mb-2">
+                {getCountryFlag(gp.country)}
+              </span>
               <span className="text-center text-[11px] font-medium text-subtle uppercase tracking-wide leading-tight">
                 {gp.name}
               </span>
             </div>
+          )}
+          {gp.raceType === "sprint" && (
+            <span className="absolute top-2 right-2 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider bg-white/90 text-black shadow-lg backdrop-blur-sm">
+              Sprint
+            </span>
           )}
         </div>
 
@@ -64,15 +75,16 @@ export default function GPCard({ gp }) {
             <div className="flex items-center gap-1.5 pt-0.5">
               <StarRating value={gp.avgRating} size="sm" />
               {gp.reviewCount != null && (
-                <span className="text-[10px] text-subtle">({gp.reviewCount})</span>
+                <span className="text-[10px] text-subtle">
+                  ({gp.reviewCount})
+                </span>
               )}
             </div>
           ) : (
             <p className="text-[11px] text-subtle italic">Not rated yet</p>
           )}
         </div>
-
       </div>
     </Link>
-  )
+  );
 }

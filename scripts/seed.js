@@ -67,9 +67,10 @@ async function seedSeason(season) {
     return { driversMap: {}, raceDriverRows: [] }
   }
 
-  const raceRows = races.map((race) => ({
+  const raceRows = races.map((race, i) => ({
     season: parseInt(race.season),
-    round: parseInt(race.round),
+    round: parseInt(race.round) || (i + 1),
+    race_type: 'race',
     name: race.raceName,
     slug: toSlug(race.Circuit.circuitId),
     circuit: race.Circuit.circuitName,
@@ -79,13 +80,13 @@ async function seedSeason(season) {
 
   const { data: insertedRaces, error: racesError } = await supabase
     .from('races')
-    .upsert(raceRows, { onConflict: 'season,round' })
+    .upsert(raceRows, { onConflict: 'season,round,race_type' })
     .select('id, round')
 
   if (racesError) throw racesError
   console.log(`  ${insertedRaces.length} races inserted`)
 
-  // round → uuid
+  // round → uuid (main races)
   const raceMap = Object.fromEntries(insertedRaces.map((r) => [r.round, r.id]))
 
   await sleep(500)
@@ -122,11 +123,91 @@ async function seedSeason(season) {
     }
   }
 
-  console.log(`  ${raceDriverRows.length} entries collected`)
+  console.log(`  ${raceDriverRows.length} race entries collected`)
 
   await sleep(500)
 
-  return { driversMap, raceDriverRows }
+  // 3. Sprint results
+  let sprintData
+  try {
+    sprintData = await fetchJson(`${BASE}/${season}/sprint.json?limit=100`)
+  } catch {
+    sprintData = null
+  }
+
+  const sprintRaces = sprintData?.MRData?.RaceTable?.Races ?? []
+  const sprintDriverRows = []
+
+  if (sprintRaces.length > 0) {
+    // Build a map of circuit info from the main schedule (by round)
+    const scheduleByRound = {}
+    for (const race of races) {
+      scheduleByRound[parseInt(race.round)] = race
+    }
+
+    const sprintRaceRows = sprintRaces.map((sprint) => {
+      const round = parseInt(sprint.round)
+      const mainRace = scheduleByRound[round]
+      // Jolpica returns the main race date for sprints — sprint is 1 day before
+      const raceDate = new Date(sprint.date + 'T12:00:00Z')
+      raceDate.setUTCDate(raceDate.getUTCDate() - 1)
+      const sprintDate = raceDate.toISOString().split('T')[0]
+      return {
+        season: parseInt(sprint.season),
+        round,
+        race_type: 'sprint',
+        name: (mainRace?.raceName ?? sprint.raceName).replace('Grand Prix', 'Grand Prix Sprint'),
+        slug: toSlug(sprint.Circuit.circuitId) + '-sprint',
+        circuit: sprint.Circuit.circuitName,
+        country: sprint.Circuit.Location.country,
+        date: sprintDate,
+      }
+    })
+
+    const { data: insertedSprints, error: sprintError } = await supabase
+      .from('races')
+      .upsert(sprintRaceRows, { onConflict: 'season,round,race_type' })
+      .select('id, round')
+
+    if (sprintError) throw sprintError
+    console.log(`  ${insertedSprints.length} sprints inserted`)
+
+    const sprintMap = Object.fromEntries(insertedSprints.map((r) => [r.round, r.id]))
+
+    for (const sprint of sprintRaces) {
+      const sprintId = sprintMap[parseInt(sprint.round)]
+      if (!sprintId) continue
+
+      for (const result of sprint.SprintResults ?? []) {
+        const d = result.Driver
+
+        driversMap[d.driverId] = {
+          id: d.driverId,
+          given_name: d.givenName,
+          family_name: d.familyName,
+          nationality: d.nationality,
+          date_of_birth: d.dateOfBirth ?? null,
+          number: parseInt(d.permanentNumber) || null,
+        }
+
+        sprintDriverRows.push({
+          race_id: sprintId,
+          driver_id: d.driverId,
+          position: parsePosition(result.positionText, result.position),
+          grid_position: parseInt(result.grid) || null,
+          status: result.status,
+        })
+      }
+    }
+
+    console.log(`  ${sprintDriverRows.length} sprint entries collected`)
+  } else {
+    console.log(`  No sprints found`)
+  }
+
+  await sleep(500)
+
+  return { driversMap, raceDriverRows: [...raceDriverRows, ...sprintDriverRows] }
 }
 
 async function upsertInChunks(table, rows, onConflict, chunkSize = 100) {

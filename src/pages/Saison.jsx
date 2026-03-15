@@ -1,64 +1,337 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import GPCard from '../components/GPCard'
 import { supabase } from '../lib/supabase'
+import { getDriverStandings, getConstructorStandings } from '../lib/f1api'
+import { getDriverPhoto } from '../lib/driverPhotos'
+import { getTeamColor } from '../lib/teamColors'
+import { getTeamPhoto } from '../lib/teamPhotos'
 
 const TODAY = new Date().toISOString().split('T')[0]
 
 export default function Saison() {
   const { annee } = useParams()
-  const [gps, setGps] = useState([])
+  const season = parseInt(annee)
+
+  const [driverStandings, setDriverStandings] = useState(null)
+  const [constructorStandings, setConstructorStandings] = useState(null)
+  const [seasonStats, setSeasonStats] = useState(null)
+  const [topRatedRaces, setTopRatedRaces] = useState([])
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState('drivers')
 
   useEffect(() => {
     setLoading(true)
-    supabase
-      .from('races')
-      .select('id, season, round, name, slug, circuit, country, date, poster_url')
-      .eq('season', parseInt(annee))
-      .lt('date', TODAY)
-      .order('date', { ascending: true })
-      .then(({ data }) => {
-        setGps(data ?? [])
-        setLoading(false)
-      })
-  }, [annee])
+    setDriverStandings(null)
+    setConstructorStandings(null)
+    setSeasonStats(null)
+    setTopRatedRaces([])
+    setTab('drivers')
 
-  const gpCards = gps.map((gp) => ({
-    ...gp,
-    posterUrl: gp.poster_url,
-    avgRating: null,
-    reviewCount: null,
-  }))
+    async function load() {
+      // Fetch standings from Jolpica + race stats from Supabase in parallel
+      const [driverRes, constructorRes, racesRes] = await Promise.all([
+        getDriverStandings(season).catch(() => null),
+        getConstructorStandings(season).catch(() => null),
+        supabase
+          .from('races')
+          .select('id, name, slug, country, date, race_type')
+          .eq('season', season)
+          .eq('race_type', 'race')
+          .lt('date', TODAY)
+          .order('date', { ascending: true }),
+      ])
+
+      setDriverStandings(driverRes)
+      setConstructorStandings(constructorRes)
+
+      const races = racesRes.data ?? []
+
+      if (races.length > 0) {
+        const raceIds = races.map((r) => r.id)
+        const { data: ratingsData } = await supabase
+          .from('ratings')
+          .select('score, race_id')
+          .in('race_id', raceIds)
+
+        const scoresByRace = {}
+        let allScores = []
+        for (const r of ratingsData ?? []) {
+          if (!scoresByRace[r.race_id]) scoresByRace[r.race_id] = []
+          scoresByRace[r.race_id].push(r.score)
+          allScores.push(r.score)
+        }
+
+        const avgSeason = allScores.length > 0
+          ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 10) / 10
+          : null
+
+        setSeasonStats({
+          raceCount: races.length,
+          totalRatings: allScores.length,
+          avgRating: avgSeason,
+        })
+
+        // Top rated races
+        const raceAvgs = races.map((race) => {
+          const scores = scoresByRace[race.id] ?? []
+          const avg = scores.length > 0
+            ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+            : null
+          return { ...race, avg, ratingCount: scores.length }
+        }).filter((r) => r.avg != null).sort((a, b) => b.avg - a.avg).slice(0, 5)
+
+        setTopRatedRaces(raceAvgs)
+      } else {
+        setSeasonStats({ raceCount: 0, totalRatings: 0, avgRating: null })
+      }
+
+      setLoading(false)
+    }
+
+    load()
+  }, [season])
+
+  if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
+
+  const champion = driverStandings?.DriverStandings?.[0]
+  const championTeam = champion?.Constructors?.[0]?.name
+  const teamColor = getTeamColor(championTeam)
+  const teamPhoto = getTeamPhoto(championTeam)
+  const teamGradient = teamColor
+    ? `radial-gradient(ellipse at 15% 60%, rgba(${teamColor.rgb[0]},${teamColor.rgb[1]},${teamColor.rgb[2]},0.12) 0%, transparent 65%)`
+    : 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)'
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
-      <div className="mb-8">
-        <div className="flex items-center gap-2 text-xs text-muted mb-2">
-          <Link to="/saisons" className="hover:text-white transition-colors">
-            Seasons
-          </Link>
-          <span>/</span>
-          <span>{annee}</span>
-        </div>
-        <h1 className="text-2xl font-black text-white">Season {annee}</h1>
-        <p className="text-sm text-muted mt-1">
-          {loading ? 'Loading…' : `${gps.length} Grands Prix`}
-        </p>
-      </div>
+    <div>
+      {/* ── Hero ── */}
+      <section className="relative border-b border-line">
+        <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
+        <div className="absolute inset-0" style={{ background: teamGradient }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
 
-      {/* GP grid */}
-      {loading ? (
-        <p className="text-muted text-sm">Loading…</p>
-      ) : gpCards.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {gpCards.map((gp) => (
-            <GPCard key={gp.id} gp={gp} />
-          ))}
+        {teamPhoto && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+            <div className="mx-auto max-w-4xl px-4 h-full flex items-center justify-end">
+              <img src={teamPhoto} alt="" className="h-48 w-auto object-contain opacity-[0.06]" />
+            </div>
+          </div>
+        )}
+
+        <div className="relative mx-auto max-w-4xl px-4 py-16">
+          <div className="flex items-center gap-2 text-sm text-subtle mb-4">
+            <Link to="/saisons" className="hover:text-white transition-colors">Seasons</Link>
+            <span>/</span>
+            <span>{annee}</span>
+          </div>
+
+          <h1 className="text-5xl font-black text-white leading-tight mb-3">Season {annee}</h1>
+
+          {champion && (
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xs font-semibold uppercase tracking-widest text-f1-red">Champion</span>
+              <span className="text-lg font-black text-white">
+                {champion.Driver.givenName} {champion.Driver.familyName}
+              </span>
+              <span className="text-sm text-muted" style={{ color: teamColor?.hex }}>
+                {championTeam}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-8">
+            {seasonStats && (
+              <>
+                <div>
+                  <p className="text-2xl font-black text-white">{seasonStats.raceCount}</p>
+                  <p className="text-xs text-subtle">Races</p>
+                </div>
+                {seasonStats.avgRating != null && (
+                  <div>
+                    <p className="text-2xl font-black text-star">{seasonStats.avgRating}</p>
+                    <p className="text-xs text-subtle">Avg rating</p>
+                  </div>
+                )}
+                {seasonStats.totalRatings > 0 && (
+                  <div>
+                    <p className="text-2xl font-black text-white">{seasonStats.totalRatings}</p>
+                    <p className="text-xs text-subtle">Total ratings</p>
+                  </div>
+                )}
+                {driverStandings && (
+                  <div>
+                    <p className="text-2xl font-black text-white">{driverStandings.round}</p>
+                    <p className="text-xs text-subtle">Rounds</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      ) : (
-        <p className="text-muted text-sm">No Grand Prix for this season.</p>
-      )}
+      </section>
+
+      <div className="mx-auto max-w-4xl px-4 py-10 space-y-10">
+
+        {/* ── Standings tabs ── */}
+        <section>
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-card p-1 w-fit mb-6">
+            {[{ key: 'drivers', label: 'Drivers' }, { key: 'constructors', label: 'Constructors' }].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-2 rounded text-sm font-medium transition-colors cursor-pointer ${tab === t.key ? 'bg-card-hover text-white' : 'text-subtle hover:text-muted'}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Driver standings */}
+          {tab === 'drivers' && (
+            driverStandings?.DriverStandings?.length > 0 ? (
+              <div className="rounded-lg border border-line overflow-hidden">
+                {driverStandings.DriverStandings.map((s, i) => {
+                  const d = s.Driver
+                  const team = s.Constructors?.[0]?.name
+                  const tc = getTeamColor(team)
+                  const photo = getDriverPhoto({ id: d.driverId, given_name: d.givenName, family_name: d.familyName })
+
+                  return (
+                    <div
+                      key={d.driverId}
+                      className={`flex items-center gap-4 px-4 py-3 border-b border-line last:border-0 hover:bg-card-hover transition-colors ${i < 3 ? 'bg-card' : ''}`}
+                    >
+                      <span className={`w-6 text-sm font-black tabular-nums text-right shrink-0 ${i === 0 ? 'text-star' : i < 3 ? 'text-white' : 'text-subtle'}`}>
+                        {s.position}
+                      </span>
+
+                      <div className="w-8 h-8 rounded-full bg-card-hover border border-line overflow-hidden shrink-0">
+                        {photo ? (
+                          <img src={photo} alt={d.familyName} className="w-full h-full object-cover object-top" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-subtle">{d.givenName?.[0]}{d.familyName?.[0]}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <Link to={`/pilotes/${d.driverId}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors">
+                          {d.givenName} <span className="font-black">{d.familyName}</span>
+                        </Link>
+                        <p className="text-xs truncate" style={{ color: tc?.hex ?? '#a3a3a3' }}>{team}</p>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-black text-white tabular-nums">{s.points}</p>
+                        <p className="text-[10px] text-subtle">pts</p>
+                      </div>
+
+                      {parseInt(s.wins) > 0 && (
+                        <div className="text-right shrink-0 w-10">
+                          <p className="text-sm font-bold text-muted tabular-nums">{s.wins}</p>
+                          <p className="text-[10px] text-subtle">wins</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-subtle">No driver standings available.</p>
+            )
+          )}
+
+          {/* Constructor standings */}
+          {tab === 'constructors' && (
+            constructorStandings?.ConstructorStandings?.length > 0 ? (
+              <div className="rounded-lg border border-line overflow-hidden">
+                {constructorStandings.ConstructorStandings.map((s, i) => {
+                  const team = s.Constructor.name
+                  const tc = getTeamColor(team)
+                  const tp = getTeamPhoto(team)
+
+                  return (
+                    <div
+                      key={s.Constructor.constructorId}
+                      className={`flex items-center gap-4 px-4 py-4 border-b border-line last:border-0 hover:bg-card-hover transition-colors ${i < 3 ? 'bg-card' : ''}`}
+                    >
+                      <span className={`w-6 text-sm font-black tabular-nums text-right shrink-0 ${i === 0 ? 'text-star' : i < 3 ? 'text-white' : 'text-subtle'}`}>
+                        {s.position}
+                      </span>
+
+                      <div
+                        className="w-3 h-8 rounded-sm shrink-0"
+                        style={{ backgroundColor: tc?.hex ?? '#525252' }}
+                      />
+
+                      {tp && (
+                        <img src={tp} alt={team} className="h-6 w-auto object-contain shrink-0" />
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-white">{team}</p>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-black text-white tabular-nums">{s.points}</p>
+                        <p className="text-[10px] text-subtle">pts</p>
+                      </div>
+
+                      {parseInt(s.wins) > 0 && (
+                        <div className="text-right shrink-0 w-10">
+                          <p className="text-sm font-bold text-muted tabular-nums">{s.wins}</p>
+                          <p className="text-[10px] text-subtle">wins</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-subtle">No constructor standings available.</p>
+            )
+          )}
+        </section>
+
+        {/* ── Top Rated Races ── */}
+        {topRatedRaces.length > 0 && (
+          <section>
+            <h2 className="text-lg font-bold text-white mb-5">Top Rated Races</h2>
+            <div className="rounded-lg border border-line overflow-hidden">
+              {topRatedRaces.map((race, i) => (
+                <Link
+                  key={race.id}
+                  to={`/gps/${season}/${race.slug}`}
+                  className="flex items-center gap-4 px-4 py-3 border-b border-line last:border-0 hover:bg-card-hover transition-colors"
+                >
+                  <span className={`w-6 text-sm font-black tabular-nums text-right shrink-0 ${i === 0 ? 'text-star' : 'text-subtle'}`}>
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{race.name}</p>
+                    <p className="text-xs text-subtle">{race.country}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-black text-star tabular-nums">{race.avg}</p>
+                    <p className="text-[10px] text-subtle">{race.ratingCount} rating{race.ratingCount !== 1 ? 's' : ''}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Link to races ── */}
+        <div className="flex items-center gap-4">
+          <Link
+            to={`/gps`}
+            className="text-sm text-muted hover:text-white transition-colors underline underline-offset-4"
+          >
+            Browse all {annee} races →
+          </Link>
+        </div>
+
+      </div>
     </div>
   )
 }

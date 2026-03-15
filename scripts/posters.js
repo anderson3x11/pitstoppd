@@ -11,8 +11,8 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 )
 
-// Keywords identifying non-race sessions (Practice, Qualifying, Sprint, Tests...)
-const EXCLUDE = /Practice|Qualifying|Sprint|Test|Shootout/i
+// Keywords identifying non-race sessions (Practice, Qualifying, Tests...)
+const EXCLUDE = /Practice|Qualifying|Test|Shootout/i
 
 // Parse a simple CSV (no internal commas in values)
 // Expected columns: idEvent, dateEvent, Round, strEvent, strPoster, strThumb
@@ -42,7 +42,7 @@ for (const file of files.sort()) {
   const content = readFileSync(join(postersDir, file), 'utf-8')
   const rows = parseCsv(content)
 
-  // Keep only race rows (not Practice/Qualifying/Sprint/Test...)
+  // Keep only race + sprint rows (not Practice/Qualifying/Test...)
   // that have a poster URL
   const gpRows = rows.filter((r) => r.poster && !EXCLUDE.test(r.name))
 
@@ -59,11 +59,13 @@ for (const file of files.sort()) {
       continue
     }
 
-    // Match by date — avoids numbering mismatches between TheSportsDB and Jolpica
+    // Match by date + race_type
+    const isSprint = /Sprint$/i.test(row.name)
     const { error } = await supabase
       .from('races')
       .update({ poster_url: row.poster })
       .eq('date', row.date)
+      .eq('race_type', isSprint ? 'sprint' : 'race')
 
     if (error) {
       console.error(`  ✗ ${row.date} ${row.name} — ${error.message}`)

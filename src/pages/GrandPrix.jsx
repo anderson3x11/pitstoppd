@@ -7,7 +7,7 @@ import { getCountryFlag } from '../lib/countryFlags'
 
 const TODAY = new Date().toISOString().split('T')[0]
 
-function ReviewCard({ review, isLiked, onLike, isOwn }) {
+function ReviewCard({ review, isLiked, onLike, isOwn, reviewUrl }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
 
   const formattedDate = new Date(review.created_at).toLocaleDateString('en-US', {
@@ -18,7 +18,7 @@ function ReviewCard({ review, isLiked, onLike, isOwn }) {
     <div className="rounded-lg border border-line bg-card p-4 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link to={`/${review.username}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors">
+          <Link to={reviewUrl ?? `/${review.username}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors">
             {review.displayName}
           </Link>
           <span className="text-subtle text-xs">·</span>
@@ -257,6 +257,18 @@ export default function GrandPrix() {
     if (data?.length) setAvgRating(Math.round((data.reduce((s, r) => s + r.score, 0) / data.length) * 10) / 10)
   }
 
+  const handleDeleteRating = async () => {
+    if (!user || !race) return
+    setUserRating(null)
+    await supabase.from('ratings').delete().eq('user_id', user.id).eq('race_id', race.id)
+    const { data } = await supabase.from('ratings').select('score').eq('race_id', race.id)
+    if (data?.length) {
+      setAvgRating(Math.round((data.reduce((s, r) => s + r.score, 0) / data.length) * 10) / 10)
+    } else {
+      setAvgRating(null)
+    }
+  }
+
   const handleOpenReviewModal = () => {
     setReviewForm({ content: userReview?.content ?? '', spoiler: userReview?.spoiler ?? false })
     setShowReviewModal(true)
@@ -310,6 +322,8 @@ export default function GrandPrix() {
 
   if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
   if (!race) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Grand Prix not found.</p></div>
+
+  const isSprint = race.race_type === 'sprint'
   if (isFuture) {
     const futureDate = new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     return (
@@ -323,7 +337,9 @@ export default function GrandPrix() {
         <p className="text-lg text-muted mb-2 capitalize">{futureDate}</p>
         <p className="text-lg text-muted mb-8">{race.circuit} · {race.country}</p>
         <div className="rounded-lg border border-line bg-card p-8 text-center space-y-2">
-          <p className="text-white font-semibold">This Grand Prix hasn't taken place yet</p>
+          <p className="text-white font-semibold">
+            {race.race_type === 'sprint' ? "This Sprint hasn't taken place yet" : "This Grand Prix hasn't taken place yet"}
+          </p>
           <p className="text-sm text-subtle">Come back after the race to rate and review it.</p>
         </div>
       </div>
@@ -403,9 +419,17 @@ export default function GrandPrix() {
                   onChange={handleRating}
                 />
                 {userRating != null ? (
-                  <span className="text-3xl font-black text-star tabular-nums">
-                    {userRating.toFixed(1)}
-                  </span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-3xl font-black text-star tabular-nums">
+                      {userRating.toFixed(1)}
+                    </span>
+                    <button
+                      onClick={handleDeleteRating}
+                      className="text-[10px] text-subtle hover:text-red-400 transition-colors cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 ) : (
                   <p className="text-xs text-subtle italic">Not rated yet</p>
                 )}
@@ -450,7 +474,7 @@ export default function GrandPrix() {
 
           {/* Race Results */}
           <section>
-            <h2 className="text-lg font-bold text-white mb-5">Race Results</h2>
+            <h2 className="text-lg font-bold text-white mb-5">{isSprint ? 'Sprint Results' : 'Race Results'}</h2>
             <div className="rounded-lg border border-line overflow-hidden">
               {(showAllResults ? classement : classement.slice(0, 5)).map((r) => (
                 <div key={r.driver_id} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
@@ -473,7 +497,7 @@ export default function GrandPrix() {
 
           {/* Qualifying */}
           <section>
-            <h2 className="text-lg font-bold text-white mb-5">Qualifying</h2>
+            <h2 className="text-lg font-bold text-white mb-5">{isSprint ? 'Starting Grid' : 'Qualifying'}</h2>
             <div className="rounded-lg border border-line overflow-hidden">
               {(showAllQualifs ? qualifs : qualifs.slice(0, 5)).map((q) => (
                 <div key={q.driver_id} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
@@ -506,7 +530,7 @@ export default function GrandPrix() {
                 <h2 className="text-lg font-bold text-white mb-5">Following</h2>
                 <div className="space-y-4">
                   {displayed.map((r) => (
-                    <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={handleLike} isOwn={user?.id === r.user_id} />
+                    <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={handleLike} isOwn={user?.id === r.user_id} reviewUrl={`/gps/${saison}/${slug}/review/${r.username}`} />
                   ))}
                 </div>
                 {followingReviews.length > 3 && (
@@ -566,7 +590,7 @@ export default function GrandPrix() {
                 {[...reviews]
                   .sort((a, b) => reviewSort === 'likes' ? (b.likes ?? 0) - (a.likes ?? 0) : new Date(b.created_at) - new Date(a.created_at))
                   .map((r) => (
-                    <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={user ? handleLike : undefined} isOwn={user?.id === r.user_id} />
+                    <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={user ? handleLike : undefined} isOwn={user?.id === r.user_id} reviewUrl={`/gps/${saison}/${slug}/review/${r.username}`} />
                   ))}
               </div>
             ) : (

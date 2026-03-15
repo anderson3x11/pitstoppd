@@ -54,7 +54,7 @@ export default function Home() {
   useEffect(() => {
     supabase
       .from('races')
-      .select('id, season, round, name, slug, circuit, country, date, poster_url')
+      .select('id, season, round, name, slug, circuit, country, date, poster_url, race_type')
       .lt('date', TODAY)
       .order('date', { ascending: false })
       .limit(4)
@@ -114,7 +114,7 @@ export default function Home() {
     loadFeed()
   }, [user])
 
-  const gpCards = gps.map((gp) => ({ ...gp, posterUrl: gp.poster_url, avgRating: null, reviewCount: null }))
+  const gpCards = gps.map((gp) => ({ ...gp, posterUrl: gp.poster_url, raceType: gp.race_type, avgRating: null, reviewCount: null }))
   const latestGP = gpCards[0] ?? null
 
   return (
@@ -145,7 +145,9 @@ export default function Home() {
           <div className="space-y-3 pb-1">
             <div className="flex items-center gap-2">
               <span className="block w-6 h-px bg-f1-red" />
-              <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">Latest Grand Prix</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">
+                {latestGP?.race_type === 'sprint' ? 'Latest Sprint' : 'Latest Grand Prix'}
+              </p>
             </div>
             {loading ? (
               <p className="text-muted text-sm">Loading…</p>
@@ -162,7 +164,7 @@ export default function Home() {
                     to={`/gps/${latestGP.season}/${latestGP.slug}`}
                     className="inline-flex items-center gap-1.5 rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
                   >
-                    View Grand Prix →
+                    {latestGP.race_type === 'sprint' ? 'View Sprint →' : 'View Grand Prix →'}
                   </Link>
                 </div>
               </>
@@ -212,7 +214,7 @@ export default function Home() {
         {/* ── Latest Grand Prix ── */}
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold">Latest Grand Prix</h2>
+            <h2 className="text-lg font-bold">Latest Races</h2>
             <Link to="/gps" className="text-sm text-muted hover:text-white transition-colors">View all →</Link>
           </div>
           {loading ? (

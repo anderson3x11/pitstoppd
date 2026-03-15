@@ -29,3 +29,21 @@ export async function getRaceResults(season, round) {
   const data = await fetchJson(`${BASE}/${season}/${round}/results.json`)
   return data.MRData.RaceTable.Races[0] ?? null
 }
+
+// Résultats sprint d'un round
+export async function getSprintResults(season, round) {
+  const data = await fetchJson(`${BASE}/${season}/${round}/sprint.json`)
+  return data.MRData.RaceTable.Races[0] ?? null
+}
+
+// Classement pilotes d'une saison
+export async function getDriverStandings(season) {
+  const data = await fetchJson(`${BASE}/${season}/driverStandings.json`)
+  return data.MRData.StandingsTable.StandingsLists[0] ?? null
+}
+
+// Classement constructeurs d'une saison
+export async function getConstructorStandings(season) {
+  const data = await fetchJson(`${BASE}/${season}/constructorStandings.json`)
+  return data.MRData.StandingsTable.StandingsLists[0] ?? null
+}

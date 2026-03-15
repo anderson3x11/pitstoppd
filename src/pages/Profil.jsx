@@ -361,9 +361,9 @@ export default function Profil() {
                                 </span>
                               </div>
                             )}
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-3">
-                              <p className="text-xs font-bold text-white truncate">{driver.family_name}</p>
-                              <p className="text-[10px] text-white/60 truncate">{driver.given_name}</p>
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/60 to-transparent px-3 pt-12 pb-3">
+                              <p className="text-xs font-bold text-white truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{driver.family_name}</p>
+                              <p className="text-[10px] text-white/60 truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{driver.given_name}</p>
                             </div>
                           </div>
                           <p className="text-center text-sm font-black text-f1-red mt-2">{i + 1}</p>
