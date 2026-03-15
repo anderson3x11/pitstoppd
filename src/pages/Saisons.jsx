@@ -43,16 +43,11 @@ export default function Saisons() {
 
   useEffect(() => {
     async function load() {
-      // Fetch race counts and avg ratings per season
-      const { data: racesData } = await supabase
-        .from('races')
-        .select('id, season')
-        .eq('race_type', 'race')
-        .lt('date', TODAY)
-
-      const { data: ratingsData } = await supabase
-        .from('ratings')
-        .select('score, race_id')
+      // Fetch race counts and avg ratings per season (parallel)
+      const [{ data: racesData }, { data: ratingsData }] = await Promise.all([
+        supabase.from('races').select('id, season').eq('race_type', 'race').lt('date', TODAY),
+        supabase.from('ratings').select('score, race_id'),
+      ])
 
       const racesBySeason = {}
       const raceIdToSeason = {}

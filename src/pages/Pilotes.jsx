@@ -58,16 +58,25 @@ export default function Pilotes() {
 
   useEffect(() => {
     async function load() {
-      // Detect the latest season with race results
-      const { data: latestRace } = await supabase
-        .from('race_drivers')
-        .select('races!inner(season)')
-        .order('races(season)', { ascending: false })
-        .limit(1)
+      // 1. Fetch races metadata (small table, no join needed)
+      const { data: racesData } = await supabase
+        .from('races')
+        .select('id, season, race_type')
 
-      const season = latestRace?.[0]?.races?.season ?? new Date().getFullYear()
-      setLatestSeason(season)
+      const latestSeason = racesData?.length
+        ? Math.max(...racesData.map((r) => r.season))
+        : new Date().getFullYear()
+      setLatestSeason(latestSeason)
 
+      // Build lookups from races
+      const raceIsRace = new Set()
+      const seasonRaceIds = []
+      for (const r of racesData ?? []) {
+        if (r.race_type === 'race') raceIsRace.add(r.id)
+        if (r.season === latestSeason) seasonRaceIds.push(r.id)
+      }
+
+      // 2. Parallel: drivers + current season entries + all P1 (no cross-table joins)
       const [
         { data: driversData },
         { data: currentData },
@@ -77,26 +86,26 @@ export default function Pilotes() {
           .from('drivers')
           .select('id, given_name, family_name, nationality, photo_url, number'),
 
-        // Drivers who participated in the latest season
         supabase
           .from('race_drivers')
-          .select('driver_id, races!inner(season)')
-          .eq('races.season', season),
+          .select('driver_id')
+          .in('race_id', seasonRaceIds),
 
-        // All wins (races only, not sprints)
         supabase
           .from('race_drivers')
-          .select('driver_id, races!inner(race_type)')
-          .eq('position', 1)
-          .eq('races.race_type', 'race'),
+          .select('driver_id, race_id')
+          .eq('position', 1),
       ])
 
       const ids = new Set(currentData?.map((r) => r.driver_id) ?? [])
       setCurrentIds(ids)
 
+      // Count wins for races only (filter sprints client-side)
       const wins = {}
       for (const row of winsData ?? []) {
-        wins[row.driver_id] = (wins[row.driver_id] ?? 0) + 1
+        if (raceIsRace.has(row.race_id)) {
+          wins[row.driver_id] = (wins[row.driver_id] ?? 0) + 1
+        }
       }
       setWinsMap(wins)
 

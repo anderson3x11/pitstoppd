@@ -17,11 +17,16 @@ export default function Pilote() {
     setLoading(true)
 
     async function load() {
-      const { data: driverData } = await supabase
-        .from('drivers')
-        .select('*')
-        .eq('id', id)
-        .single()
+      // Parallel: driver info + race entries + races metadata
+      const [
+        { data: driverData },
+        { data: rdData },
+        { data: racesData },
+      ] = await Promise.all([
+        supabase.from('drivers').select('*').eq('id', id).single(),
+        supabase.from('race_drivers').select('race_id, position, grid_position, status').eq('driver_id', id),
+        supabase.from('races').select('id, season, name, slug, date, race_type'),
+      ])
 
       if (!driverData) {
         setLoading(false)
@@ -29,16 +34,16 @@ export default function Pilote() {
       }
       setPilote(driverData)
 
-      const { data: rdData } = await supabase
-        .from('race_drivers')
-        .select('position, grid_position, status, races(id, season, name, slug, date, race_type)')
-        .eq('driver_id', id)
+      // Join client-side (avoids cross-table join on large table)
+      const raceLookup = {}
+      for (const r of racesData ?? []) raceLookup[r.id] = r
 
-      const sorted = (rdData ?? [])
+      const entries = (rdData ?? [])
+        .map((rd) => ({ ...rd, races: raceLookup[rd.race_id] }))
         .filter((rd) => rd.races?.date)
         .sort((a, b) => new Date(b.races.date) - new Date(a.races.date))
 
-      const racesOnly = sorted.filter((rd) => rd.races.race_type === 'race')
+      const racesOnly = entries.filter((rd) => rd.races.race_type === 'race')
 
       setStats({
         wins: racesOnly.filter((rd) => rd.position === 1).length,
@@ -46,7 +51,7 @@ export default function Pilote() {
         courses: racesOnly.length,
       })
 
-      setDerniersGPs(sorted.filter((rd) => rd.races.date < TODAY).slice(0, 10))
+      setDerniersGPs(entries.filter((rd) => rd.races.date < TODAY).slice(0, 10))
       setLoading(false)
     }
 
