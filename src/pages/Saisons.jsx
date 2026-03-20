@@ -4,9 +4,8 @@ import { supabase } from '../lib/supabase'
 import { getDriverStandings } from '../lib/f1api'
 import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
-
-const TODAY = new Date().toISOString().split('T')[0]
-const FIRST_SEASON = 2000
+import { TODAY, FIRST_SEASON } from '../lib/constants'
+import { computeAvgRating } from '../lib/ratingUtils'
 
 const CHAMPIONS = {
   2025: { driver: 'Lando Norris', team: 'McLaren' },
@@ -87,13 +86,10 @@ export default function Saisons() {
       const seasons = []
       for (let y = maxSeason; y >= FIRST_SEASON; y--) {
         const scores = scoresBySeason[y] ?? []
-        const avg = scores.length > 0
-          ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
-          : null
         seasons.push({
           year: y,
           raceCount: racesBySeason[y] ?? 0,
-          avgRating: avg,
+          avgRating: computeAvgRating(scores),
           ratingCount: scores.length,
           champion: CHAMPIONS[y] ?? null,
           leader: leaders[y] ?? null,

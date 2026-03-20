@@ -3,8 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getWDC } from '../lib/driverWDC'
-
-const TODAY = new Date().toISOString().split('T')[0]
+import { TODAY } from '../lib/constants'
 
 export default function Pilote() {
   const { id } = useParams()

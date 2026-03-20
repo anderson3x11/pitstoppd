@@ -5,8 +5,8 @@ import { getDriverStandings, getConstructorStandings } from '../lib/f1api'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
-
-const TODAY = new Date().toISOString().split('T')[0]
+import { TODAY } from '../lib/constants'
+import { computeAvgRating, groupRatingsByRace } from '../lib/ratingUtils'
 
 export default function Saison() {
   const { annee } = useParams()
@@ -53,17 +53,10 @@ export default function Saison() {
           .select('score, race_id')
           .in('race_id', raceIds)
 
-        const scoresByRace = {}
-        let allScores = []
-        for (const r of ratingsData ?? []) {
-          if (!scoresByRace[r.race_id]) scoresByRace[r.race_id] = []
-          scoresByRace[r.race_id].push(r.score)
-          allScores.push(r.score)
-        }
+        const scoresByRace = groupRatingsByRace(ratingsData)
+        const allScores = (ratingsData ?? []).map((r) => r.score)
 
-        const avgSeason = allScores.length > 0
-          ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 10) / 10
-          : null
+        const avgSeason = computeAvgRating(allScores)
 
         setSeasonStats({
           raceCount: races.length,
@@ -74,10 +67,7 @@ export default function Saison() {
         // Top rated races
         const raceAvgs = races.map((race) => {
           const scores = scoresByRace[race.id] ?? []
-          const avg = scores.length > 0
-            ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
-            : null
-          return { ...race, avg, ratingCount: scores.length }
+          return { ...race, avg: computeAvgRating(scores), ratingCount: scores.length }
         }).filter((r) => r.avg != null).sort((a, b) => b.avg - a.avg).slice(0, 5)
 
         setTopRatedRaces(raceAvgs)

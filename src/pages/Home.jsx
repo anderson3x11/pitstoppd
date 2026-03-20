@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { getCountryFlag } from '../lib/countryFlags'
 
-const TODAY = new Date().toISOString().split('T')[0]
+import { TODAY } from '../lib/constants'
 
 function FeedCard({ entry }) {
   return (

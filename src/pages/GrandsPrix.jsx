@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
 import { supabase } from '../lib/supabase'
-
-const TODAY = new Date().toISOString().split('T')[0]
-const FIRST_SEASON = 2000
+import { TODAY, FIRST_SEASON } from '../lib/constants'
+import { computeAvgRating } from '../lib/ratingUtils'
 
 function buildSeasonsList(latestSeason) {
   const seasons = []
@@ -71,7 +70,6 @@ export default function GrandsPrix() {
 
       const ratings = ratingsData ?? []
 
-      // Group ratings by race_id
       const ratingsByRace = {}
       for (const rating of ratings) {
         if (!ratingsByRace[rating.race_id]) ratingsByRace[rating.race_id] = []
@@ -80,18 +78,12 @@ export default function GrandsPrix() {
 
       const enriched = races.map((gp) => {
         const scores = ratingsByRace[gp.id] ?? []
-        const reviewCount = scores.length
-        const avgRating =
-          reviewCount > 0
-            ? Math.round((scores.reduce((sum, s) => sum + s, 0) / reviewCount) * 10) / 10
-            : null
-
         return {
           ...gp,
           posterUrl: gp.poster_url,
           raceType: gp.race_type,
-          avgRating,
-          reviewCount,
+          avgRating: computeAvgRating(scores),
+          reviewCount: scores.length,
         }
       })
 

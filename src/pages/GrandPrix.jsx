@@ -4,15 +4,14 @@ import StarRating from '../components/StarRating'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { getCountryFlag } from '../lib/countryFlags'
-
-const TODAY = new Date().toISOString().split('T')[0]
+import { TODAY } from '../lib/constants'
+import { computeAvgRating } from '../lib/ratingUtils'
+import { formatDateLong, formatDateShort } from '../lib/dateUtils'
 
 function ReviewCard({ review, isLiked, onLike, isOwn, reviewUrl }) {
   const [spoilerVisible, setSpoilerVisible] = useState(false)
 
-  const formattedDate = new Date(review.created_at).toLocaleDateString('en-US', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  })
+  const formattedDate = formatDateShort(review.created_at)
 
   return (
     <div className="rounded-lg border border-line bg-card p-4 space-y-3">
@@ -181,10 +180,7 @@ export default function GrandPrix() {
       setRaceDrivers(rdData ?? [])
 
       const { data: ratingsData } = await supabase.from('ratings').select('score').eq('race_id', raceData.id)
-      if (ratingsData?.length) {
-        const avg = ratingsData.reduce((s, r) => s + r.score, 0) / ratingsData.length
-        setAvgRating(Math.round(avg * 10) / 10)
-      }
+      setAvgRating(computeAvgRating(ratingsData?.map((r) => r.score)))
 
       // Fetch following IDs if logged in
       if (user) {
@@ -254,7 +250,7 @@ export default function GrandPrix() {
       { onConflict: 'user_id,race_id' }
     )
     const { data } = await supabase.from('ratings').select('score').eq('race_id', race.id)
-    if (data?.length) setAvgRating(Math.round((data.reduce((s, r) => s + r.score, 0) / data.length) * 10) / 10)
+    setAvgRating(computeAvgRating(data?.map((r) => r.score)))
   }
 
   const handleDeleteRating = async () => {
@@ -262,11 +258,7 @@ export default function GrandPrix() {
     setUserRating(null)
     await supabase.from('ratings').delete().eq('user_id', user.id).eq('race_id', race.id)
     const { data } = await supabase.from('ratings').select('score').eq('race_id', race.id)
-    if (data?.length) {
-      setAvgRating(Math.round((data.reduce((s, r) => s + r.score, 0) / data.length) * 10) / 10)
-    } else {
-      setAvgRating(null)
-    }
+    setAvgRating(computeAvgRating(data?.map((r) => r.score)))
   }
 
   const handleOpenReviewModal = () => {
@@ -325,7 +317,7 @@ export default function GrandPrix() {
 
   const isSprint = race.race_type === 'sprint'
   if (isFuture) {
-    const futureDate = new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const futureDate = formatDateLong(race.date)
     return (
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="flex items-center gap-2 text-sm text-subtle mb-6">
@@ -346,7 +338,7 @@ export default function GrandPrix() {
     )
   }
 
-  const formattedDate = new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const formattedDate = formatDateLong(race.date)
   const classement = [...raceDrivers].filter((rd) => rd.position != null).sort((a, b) => a.position - b.position)
   const qualifs = [...raceDrivers].filter((rd) => rd.grid_position != null).sort((a, b) => a.grid_position - b.grid_position)
 
