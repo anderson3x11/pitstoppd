@@ -9,22 +9,24 @@ Le seed historique a ajouté ~200+ pilotes sans photos. Récupérer les portrait
 
 ## Fonctionnalités à venir
 
+### Recherche
+- Icone recherche dans la navbar pour chercher des utilisateurs
+
 ### Profil
 - Followers/Following cliquables → page dédiée avec liste des users
 - "Membre depuis" dans le hero du profil
 
 ### Page GP
-- Section "You might also like" → GPs similaires (même circuit, même saison)
 - Récap vidéo officiel F1 du GP (YouTube embed)
 
 ### Settings
-- Sélection top 3 pilotes à améliorer (autocomplete)
 - Préférences spoilers (toujours masquer / toujours afficher par défaut)
 - Compte privé (reviews/ratings visibles uniquement par les abonnés)
 
 ### Notifications (long terme)
 - Notif quand quelqu'un like ta review
 - Notif quand quelqu'un te follow
+- Icone cloche a coté du nom de profil sur la navbar pour les notifs
 
 ---
 

@@ -60,8 +60,9 @@ export default function Home() {
       .limit(4)
       .then(({ data }) => {
         setGps(data ?? [])
-        setLoading(false)
       })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
