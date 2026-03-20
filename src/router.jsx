@@ -13,6 +13,7 @@ import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Review from './pages/Review'
+import Search from './pages/Search'
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: 'settings', element: <Settings /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
+      { path: 'search', element: <Search /> },
       // /:username doit être en dernier (route dynamique catch-all)
       { path: ':username/reviews', element: <ProfilReviews /> },
       { path: ':username', element: <Profil /> },

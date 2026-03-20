@@ -9,8 +9,8 @@ Le seed historique a ajouté ~200+ pilotes sans photos. Récupérer les portrait
 
 ## Fonctionnalités à venir
 
-### Recherche
-- Icone recherche dans la navbar pour chercher des utilisateurs
+### ~~Recherche~~
+- ~~Icone recherche dans la navbar pour chercher des utilisateurs~~ ✅
 
 ### Profil
 - Followers/Following cliquables → page dédiée avec liste des users
@@ -27,15 +27,6 @@ Le seed historique a ajouté ~200+ pilotes sans photos. Récupérer les portrait
 - Notif quand quelqu'un like ta review
 - Notif quand quelqu'un te follow
 - Icone cloche a coté du nom de profil sur la navbar pour les notifs
-
----
-
-## Done
-
-- ~~Page review individuelle~~ → `/gps/:saison/:slug/review/:username`
-- ~~Refaire la page Seasons~~ → cards avec gradient champion, standings live
-- ~~Supprimer une note~~ → bouton Remove sur la page GP
-- ~~Extension saisons 2000–2019~~ → seed-historical.js, dropdown saisons, stats hors sprints, card champion dorée
 
 ---
 
