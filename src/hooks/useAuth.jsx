@@ -18,14 +18,42 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    let mounted = true
+
+    // Safety timeout: if auth init takes too long, unblock the app
+    const timeout = setTimeout(() => {
+      if (mounted) setLoading(false)
+    }, 4000)
+
+    // Load initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        loadProfile(session.user.id).finally(() => {
+          if (mounted) setLoading(false)
+        })
+      } else {
+        setLoading(false)
+      }
+    }).catch(() => {
+      if (mounted) setLoading(false)
+    })
+
+    // Listen for subsequent auth changes (sign in, sign out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') return
+      if (!mounted) return
       setUser(session?.user ?? null)
       if (session?.user) await loadProfile(session.user.id)
       else setProfile(null)
-      setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [loadProfile])
 
   const signOut = async () => {

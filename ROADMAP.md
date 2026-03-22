@@ -9,9 +9,6 @@ Le seed historique a ajouté ~200+ pilotes sans photos. Récupérer les portrait
 
 ## Fonctionnalités à venir
 
-### ~~Recherche~~
-- ~~Icone recherche dans la navbar pour chercher des utilisateurs~~ ✅
-
 ### Profil
 - Followers/Following cliquables → page dédiée avec liste des users
 - "Membre depuis" dans le hero du profil
@@ -35,4 +32,3 @@ Le seed historique a ajouté ~200+ pilotes sans photos. Récupérer les portrait
 - Page 404 propre
 - Responsive mobile à vérifier sur toutes les pages
 - Skeleton loaders à la place des "Loading…" textuels
-- Home hero : trouver une image de fond
