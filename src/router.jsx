@@ -1,8 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import RootLayout from './layouts/RootLayout'
-
-const Home = lazy(() => import('./pages/Home'))
+import Home from './pages/Home'
 const GrandsPrix = lazy(() => import('./pages/GrandsPrix'))
 const GrandPrix = lazy(() => import('./pages/GrandPrix'))
 const Saisons = lazy(() => import('./pages/Saisons'))
@@ -30,7 +29,7 @@ export const router = createBrowserRouter([
     path: '/',
     element: <RootLayout />,
     children: [
-      { index: true, element: <Lazy><Home /></Lazy> },
+      { index: true, element: <Home /> },
       { path: 'gps', element: <Lazy><GrandsPrix /></Lazy> },
       { path: 'gps/:saison/:slug', element: <Lazy><GrandPrix /></Lazy> },
       { path: 'gps/:saison/:slug/review/:username', element: <Lazy><Review /></Lazy> },

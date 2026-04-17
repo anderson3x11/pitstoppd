@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import { TODAY, FIRST_SEASON } from '../lib/constants'
 import { computeAvgRating } from '../lib/ratingUtils'
 
@@ -12,6 +13,7 @@ function buildSeasonsList(latestSeason) {
 }
 
 export default function GrandsPrix() {
+  const { loading: authLoading } = useAuth()
   const [seasons, setSeasons] = useState(() => buildSeasonsList(new Date().getFullYear()))
   const [saisonActive, setSaisonActive] = useState(seasons[0])
   const [gps, setGps] = useState([])
@@ -20,6 +22,8 @@ export default function GrandsPrix() {
 
   // Detect latest season with data
   useEffect(() => {
+    if (authLoading) return
+
     supabase
       .from('races')
       .select('season')
@@ -33,7 +37,7 @@ export default function GrandsPrix() {
           setSaisonActive(latest)
         }
       })
-  }, [])
+  }, [authLoading])
 
   useEffect(() => {
     setLoading(true)

@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getWDC } from '../lib/driverWDC'
 import { TODAY } from '../lib/constants'
 
 export default function Pilote() {
   const { id } = useParams()
+  const { loading: authLoading } = useAuth()
   const [pilote, setPilote] = useState(null)
   const [stats, setStats] = useState({ wins: 0, podiums: 0, courses: 0 })
   const [derniersGPs, setDerniersGPs] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
+
     setLoading(true)
 
     async function load() {
@@ -55,7 +59,7 @@ export default function Pilote() {
     }
 
     load()
-  }, [id])
+  }, [id, authLoading])
 
   if (loading) {
     return (

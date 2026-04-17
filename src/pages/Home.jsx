@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
 import StarRating from '../components/StarRating'
+import { SkeletonGPCard, SkeletonHero, SkeletonFeedCard } from '../components/Skeleton'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { getCountryFlag } from '../lib/countryFlags'
@@ -45,13 +46,15 @@ function FeedCard({ entry }) {
 }
 
 export default function Home() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [gps, setGps] = useState([])
   const [loading, setLoading] = useState(true)
   const [feedReviews, setFeedReviews] = useState([])
   const [feedLoading, setFeedLoading] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return
+
     supabase
       .from('races')
       .select('id, season, round, name, slug, circuit, country, date, poster_url, race_type')
@@ -63,9 +66,10 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [authLoading])
 
   useEffect(() => {
+    if (authLoading) return
     if (!user) { setFeedReviews([]); return }
 
     setFeedLoading(true)
@@ -113,7 +117,7 @@ export default function Home() {
     }
 
     loadFeed()
-  }, [user])
+  }, [user, authLoading])
 
   const gpCards = gps.map((gp) => ({ ...gp, posterUrl: gp.poster_url, raceType: gp.race_type, avgRating: null, reviewCount: null }))
   const latestGP = gpCards[0] ?? null
@@ -132,14 +136,14 @@ export default function Home() {
           <div className="hidden sm:block w-40 shrink-0 rounded-lg overflow-hidden border border-white/10 shadow-2xl aspect-[2/3] bg-card-hover">
             {latestGP?.posterUrl ? (
               <img src={latestGP.posterUrl} alt={latestGP.name} className="h-full w-full object-cover" />
-            ) : (
+            ) : !loading && latestGP ? (
               <div className="h-full w-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-card-hover to-card">
                 <span className="text-5xl">{getCountryFlag(latestGP?.country)}</span>
                 <span className="text-center text-[11px] font-medium text-subtle uppercase tracking-wide leading-tight px-2">
                   {latestGP?.name}
                 </span>
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Infos */}
@@ -151,7 +155,7 @@ export default function Home() {
               </p>
             </div>
             {loading ? (
-              <p className="text-muted text-sm">Loading…</p>
+              <SkeletonHero />
             ) : latestGP ? (
               <>
                 <h1 className="text-4xl font-black text-white leading-tight">{latestGP.name}</h1>
@@ -183,7 +187,9 @@ export default function Home() {
           <h2 className="text-lg font-bold mb-4">Following</h2>
           {user ? (
             feedLoading ? (
-              <p className="text-muted text-sm">Loading…</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[0, 1, 2].map((i) => <SkeletonFeedCard key={i} />)}
+              </div>
             ) : feedReviews.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {feedReviews.map((r) => <FeedCard key={r.id} entry={r} />)}
@@ -219,7 +225,9 @@ export default function Home() {
             <Link to="/gps" className="text-sm text-muted hover:text-white transition-colors">View all →</Link>
           </div>
           {loading ? (
-            <p className="text-muted text-sm">Loading…</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map((i) => <SkeletonGPCard key={i} />)}
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {gpCards.map((gp) => <GPCard key={gp.id} gp={gp} />)}

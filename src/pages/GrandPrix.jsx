@@ -124,7 +124,7 @@ function ReviewModal({ race, userReview, reviewForm, setReviewForm, onSubmit, on
 
 export default function GrandPrix() {
   const { saison, slug } = useParams()
-  const { user, profile } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
 
   const [race, setRace] = useState(null)
   const [raceDrivers, setRaceDrivers] = useState([])
@@ -148,6 +148,8 @@ export default function GrandPrix() {
   const [showAllQualifs, setShowAllQualifs] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return
+
     setLoading(true)
     setIsFuture(false)
     setFollowingIds(new Set())
@@ -240,7 +242,7 @@ export default function GrandPrix() {
     }
 
     load()
-  }, [saison, slug, user?.id])
+  }, [saison, slug, user?.id, authLoading])
 
   const handleRating = async (score) => {
     if (!user || !race || isFuture) return

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import { getDriverPhoto } from '../lib/driverPhotos'
 
 function PiloteCard({ pilote, wins, isChampion }) {
@@ -49,6 +50,7 @@ function PiloteCard({ pilote, wins, isChampion }) {
 }
 
 export default function Pilotes() {
+  const { loading: authLoading } = useAuth()
   const [drivers, setDrivers] = useState([])
   const [currentIds, setCurrentIds] = useState(new Set())
   const [latestSeason, setLatestSeason] = useState(null)
@@ -57,6 +59,8 @@ export default function Pilotes() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
+    if (authLoading) return
+
     async function load() {
       // 1. Fetch races metadata (small table, no join needed)
       const { data: racesData } = await supabase
@@ -114,7 +118,7 @@ export default function Pilotes() {
     }
 
     load()
-  }, [])
+  }, [authLoading])
 
   const query = search.toLowerCase().trim()
 

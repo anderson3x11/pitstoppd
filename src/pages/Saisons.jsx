@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import { getDriverStandings } from '../lib/f1api'
 import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
@@ -37,10 +38,13 @@ const CHAMPIONS = {
 }
 
 export default function Saisons() {
+  const { loading: authLoading } = useAuth()
   const [seasonsData, setSeasonsData] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
+
     async function load() {
       // Fetch race counts and avg ratings per season (parallel)
       const [{ data: racesData }, { data: ratingsData }] = await Promise.all([
@@ -101,7 +105,7 @@ export default function Saisons() {
     }
 
     load()
-  }, [])
+  }, [authLoading])
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">

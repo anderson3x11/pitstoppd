@@ -36,7 +36,7 @@ function StarDisplay({ avg, size = 'sm' }) {
 
 export default function Profil() {
   const { username } = useParams()
-  const { user, profile: currentUserProfile } = useAuth()
+  const { user, profile: currentUserProfile, loading: authLoading } = useAuth()
 
   const [profil, setProfil] = useState(null)
   const [stats, setStats] = useState({ notes: 0, critiques: 0, abonnes: 0, abonnements: 0 })
@@ -51,6 +51,8 @@ export default function Profil() {
   const isOwnProfile = currentUserProfile?.username === username
 
   useEffect(() => {
+    if (authLoading) return
+
     setLoading(true)
     setProfil(null)
     setTopPilotes([])
@@ -163,7 +165,7 @@ export default function Profil() {
     }
 
     load()
-  }, [username, user])
+  }, [username, user, authLoading])
 
   const handleFollow = async () => {
     if (!user || !profil) return

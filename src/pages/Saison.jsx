@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import { getDriverStandings, getConstructorStandings } from '../lib/f1api'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getTeamColor } from '../lib/teamColors'
@@ -11,6 +12,7 @@ import { computeAvgRating, groupRatingsByRace } from '../lib/ratingUtils'
 export default function Saison() {
   const { annee } = useParams()
   const season = parseInt(annee)
+  const { loading: authLoading } = useAuth()
 
   const [driverStandings, setDriverStandings] = useState(null)
   const [constructorStandings, setConstructorStandings] = useState(null)
@@ -20,6 +22,8 @@ export default function Saison() {
   const [tab, setTab] = useState('drivers')
 
   useEffect(() => {
+    if (authLoading) return
+
     setLoading(true)
     setDriverStandings(null)
     setConstructorStandings(null)
@@ -79,7 +83,7 @@ export default function Saison() {
     }
 
     load()
-  }, [season])
+  }, [season, authLoading])
 
   if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
 
