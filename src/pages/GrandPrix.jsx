@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import StarRating from '../components/StarRating'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { getRaceResults, getSprintResults } from '../lib/f1api'
 import { getCountryFlag } from '../lib/countryFlags'
 import { TODAY } from '../lib/constants'
 import { computeAvgRating } from '../lib/ratingUtils'
@@ -179,7 +180,26 @@ export default function GrandPrix() {
         .from('race_drivers')
         .select('position, grid_position, status, driver_id, drivers(id, given_name, family_name)')
         .eq('race_id', raceData.id)
-      setRaceDrivers(rdData ?? [])
+
+      if (rdData && rdData.length > 0) {
+        setRaceDrivers(rdData)
+      } else {
+        // Results not seeded yet — fetch live from Jolpica
+        try {
+          const fetcher = raceData.race_type === 'sprint' ? getSprintResults : getRaceResults
+          const live = await fetcher(raceData.season, raceData.round)
+          const entries = (raceData.race_type === 'sprint' ? live?.SprintResults : live?.Results) ?? []
+          setRaceDrivers(entries.map((r) => ({
+            driver_id: r.Driver.driverId,
+            position: /^\d+$/.test(r.positionText) ? parseInt(r.position) : null,
+            grid_position: parseInt(r.grid) || null,
+            status: r.status,
+            drivers: { id: r.Driver.driverId, given_name: r.Driver.givenName, family_name: r.Driver.familyName },
+          })))
+        } catch {
+          setRaceDrivers([])
+        }
+      }
 
       const { data: ratingsData } = await supabase.from('ratings').select('score').eq('race_id', raceData.id)
       setAvgRating(computeAvgRating(ratingsData?.map((r) => r.score)))

@@ -158,7 +158,7 @@ export default function Home() {
               <SkeletonHero />
             ) : latestGP ? (
               <>
-                <h1 className="text-4xl font-black text-white leading-tight">{latestGP.name}</h1>
+                <h1 className="font-display font-black italic text-[56px] leading-none uppercase tracking-tight text-white">{latestGP.name}</h1>
                 <p className="text-sm text-muted">
                   {latestGP.season}
                   {latestGP.circuit && <> · {latestGP.circuit}</>}
