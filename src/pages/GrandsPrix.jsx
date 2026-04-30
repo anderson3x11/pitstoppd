@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
 import { supabase } from '../lib/supabase'
@@ -16,6 +16,7 @@ export default function GrandsPrix() {
   const { loading: authLoading } = useAuth()
   const [seasons, setSeasons] = useState(() => buildSeasonsList(new Date().getFullYear()))
   const [saisonActive, setSaisonActive] = useState(seasons[0])
+  const [sortMode, setSortMode] = useState('latest')
   const [gps, setGps] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -44,12 +45,15 @@ export default function GrandsPrix() {
     setError(null)
 
     const fetchData = async () => {
-      const { data: racesData, error: racesError } = await supabase
+      let racesQuery = supabase
         .from('races')
         .select('id, season, round, name, slug, circuit, country, date, poster_url, race_type')
-        .eq('season', saisonActive)
         .lt('date', TODAY)
         .order('date', { ascending: false })
+
+      if (saisonActive !== 0) racesQuery = racesQuery.eq('season', saisonActive)
+
+      const { data: racesData, error: racesError } = await racesQuery
 
       if (racesError) {
         setError(racesError.message)
@@ -98,6 +102,13 @@ export default function GrandsPrix() {
     fetchData()
   }, [saisonActive])
 
+  const gpsDisplay = useMemo(() => {
+    if (sortMode === 'best') return [...gps].filter((g) => g.avgRating !== null).sort((a, b) => b.avgRating - a.avgRating)
+    if (sortMode === 'worst') return [...gps].filter((g) => g.avgRating !== null).sort((a, b) => a.avgRating - b.avgRating)
+    if (sortMode === 'popular') return [...gps].sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
+    return gps
+  }, [gps, sortMode])
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
 
@@ -105,33 +116,49 @@ export default function GrandsPrix() {
       <div className="mb-8">
         <h1 className="text-2xl font-black text-white">Grands Prix</h1>
         <p className="text-sm text-muted mt-1">
-          {loading ? 'Loading…' : `${gps.length} races · ${saisonActive} season`}
+          {loading ? 'Loading…' : `${gpsDisplay.length} races · ${saisonActive === 0 ? 'All time' : `${saisonActive} season`}`}
         </p>
       </div>
 
-      {/* Season filter */}
-      <div className="mb-8">
+      {/* Filters */}
+      <div className="mb-8 flex flex-wrap items-center gap-4">
         <select
           value={saisonActive}
           onChange={(e) => setSaisonActive(Number(e.target.value))}
           className="appearance-none cursor-pointer rounded-lg bg-card border border-line text-white text-sm font-medium px-4 py-2 pr-8 hover:border-subtle focus:outline-none focus:border-f1-red transition-colors"
           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a3a3a3' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center' }}
         >
+          <option value={0}>All time</option>
           {seasons.map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+
+        <div className="flex items-center gap-1 rounded-lg border border-line bg-card p-1">
+          {[
+            { key: 'latest', label: 'Latest' },
+            { key: 'best', label: 'Best' },
+            { key: 'worst', label: 'Worst' },
+            { key: 'popular', label: 'Most reviewed' },
+          ].map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setSortMode(opt.key)}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer ${sortMode === opt.key ? 'bg-card-hover text-white' : 'text-subtle hover:text-muted'}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Link to season page */}
-      <div className="mb-6">
-        <Link
-          to={`/saisons/${saisonActive}`}
-          className="text-sm text-muted hover:text-white transition-colors"
-        >
-          View {saisonActive} season overview →
-        </Link>
-      </div>
+      {saisonActive !== 0 && (
+        <div className="mb-6">
+          <Link to={`/saisons/${saisonActive}`} className="text-sm text-muted hover:text-white transition-colors">
+            View {saisonActive} season overview →
+          </Link>
+        </div>
+      )}
 
       {/* Content */}
       {error ? (
@@ -142,15 +169,18 @@ export default function GrandsPrix() {
         <div className="text-center py-20 text-muted">
           <p>Loading…</p>
         </div>
-      ) : gps.length > 0 ? (
+      ) : gpsDisplay.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {gps.map((gp) => (
+          {gpsDisplay.map((gp) => (
             <GPCard key={gp.id} gp={gp} />
           ))}
         </div>
       ) : (
         <div className="text-center py-20 text-muted">
-          <p>No Grand Prix found for the {saisonActive} season.</p>
+          {sortMode === 'best' || sortMode === 'worst'
+            ? <p>No rated GPs for this selection.</p>
+            : <p>No Grand Prix found for the {saisonActive === 0 ? 'selected filters' : `${saisonActive} season`}.</p>
+          }
         </div>
       )}
 

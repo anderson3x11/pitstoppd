@@ -8,6 +8,8 @@ import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
 import ReviewCard from '../components/ReviewCard'
 
+const CURRENT_YEAR = new Date().getFullYear()
+
 function StarDisplay({ avg, size = 'sm' }) {
   const starSize = size === 'sm' ? 'w-3.5 h-3.5' : 'w-5 h-5'
   return (
@@ -39,7 +41,7 @@ export default function Profil() {
   const { user, profile: currentUserProfile, loading: authLoading } = useAuth()
 
   const [profil, setProfil] = useState(null)
-  const [stats, setStats] = useState({ notes: 0, critiques: 0, abonnes: 0, abonnements: 0 })
+  const [stats, setStats] = useState({ notes: 0, currentSeason: 0, critiques: 0, abonnes: 0, abonnements: 0 })
   const [ratingStats, setRatingStats] = useState(null)
   const [dernieresReviews, setDernieresReviews] = useState([])
   const [popularReviews, setPopularReviews] = useState([])
@@ -81,15 +83,17 @@ export default function Profil() {
         { count: abonnesCount },
         { count: abonnementsCount },
       ] = await Promise.all([
-        supabase.from('ratings').select('score').eq('user_id', profilData.id),
+        supabase.from('ratings').select('score, races(season)').eq('user_id', profilData.id),
         supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('user_id', profilData.id),
         supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', profilData.id),
         supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', profilData.id),
       ])
 
       const notesCount = ratingsScores?.length ?? 0
+      const currentSeasonCount = (ratingsScores ?? []).filter((r) => r.races?.season === CURRENT_YEAR).length
       setStats({
         notes: notesCount,
+        currentSeason: currentSeasonCount,
         critiques: critiquesCount ?? 0,
         abonnes: abonnesCount ?? 0,
         abonnements: abonnementsCount ?? 0,
@@ -98,10 +102,10 @@ export default function Profil() {
       if (notesCount > 0) {
         const scores = ratingsScores.map((r) => r.score)
         const avg = scores.reduce((a, b) => a + b, 0) / notesCount
-        const best = Math.max(...scores)
-        const worst = Math.min(...scores)
-        const positiveRate = Math.round((scores.filter((s) => s >= 3).length / notesCount) * 100)
-        setRatingStats({ avg: avg.toFixed(1), total: notesCount, best, worst, positiveRate })
+        const STEPS = [5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.5]
+        const distribution = STEPS.map((v) => ({ value: v, count: scores.filter((s) => s === v).length }))
+        const maxCount = Math.max(...distribution.map((d) => d.count), 1)
+        setRatingStats({ avg: avg.toFixed(1), total: notesCount, distribution, maxCount })
       }
 
       const { data: reviewsData } = await supabase
@@ -250,7 +254,8 @@ export default function Profil() {
             )}
             <div className="flex items-center gap-6 pt-2">
               {[
-                { label: 'Ratings', value: stats.notes },
+                { label: 'Watched', value: stats.notes },
+                { label: String(CURRENT_YEAR), value: stats.currentSeason },
                 { label: 'Reviews', value: stats.critiques },
                 { label: 'Followers', value: stats.abonnes },
                 { label: 'Following', value: stats.abonnements },
@@ -362,10 +367,9 @@ export default function Profil() {
 
             {/* Statistics */}
             {ratingStats && (
-              <div className="w-44 shrink-0 flex flex-col">
+              <div className="w-52 shrink-0 flex flex-col">
                 <h2 className="text-lg font-bold text-white mb-5">Statistics</h2>
-                <div className="rounded-lg border border-line bg-card p-4 flex flex-col gap-4 flex-1">
-                  {/* Average */}
+                <div className="rounded-lg border border-line bg-card p-4 space-y-4 flex-1">
                   <div className="text-center">
                     <p className="text-4xl font-black text-white leading-none">{ratingStats.avg}</p>
                     <div className="flex justify-center mt-2">
@@ -373,28 +377,18 @@ export default function Profil() {
                     </div>
                     <p className="text-xs text-subtle mt-1.5">{ratingStats.total} rating{ratingStats.total !== 1 ? 's' : ''}</p>
                   </div>
-
                   <div className="border-t border-line" />
-
-                  {/* Key stats */}
-                  <div className="flex flex-col gap-3">
-                    {[
-                      { label: 'Best given', value: ratingStats.best },
-                      { label: 'Worst given', value: ratingStats.worst },
-                      { label: 'Positive', value: `${ratingStats.positiveRate}%`, raw: true },
-                    ].map((stat) => (
-                      <div key={stat.label} className="rounded-lg bg-card-hover border border-line px-3 py-2.5 text-center">
-                        <p className="text-xs text-subtle mb-1.5">{stat.label}</p>
-                        {stat.raw ? (
-                          <p className="text-xl font-black text-white">{stat.value}</p>
-                        ) : (
-                          <>
-                            <p className="text-xl font-black text-white mb-1.5">{stat.value}</p>
-                            <div className="flex justify-center">
-                              <StarDisplay avg={stat.value} />
-                            </div>
-                          </>
-                        )}
+                  <div className="space-y-1.5">
+                    {ratingStats.distribution.map(({ value, count }) => (
+                      <div key={value} className="flex items-center gap-2">
+                        <span className="text-[10px] text-subtle w-6 text-right shrink-0 tabular-nums">{value}</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-card-hover overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-star"
+                            style={{ width: `${(count / ratingStats.maxCount) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-subtle w-3 shrink-0 tabular-nums">{count > 0 ? count : ''}</span>
                       </div>
                     ))}
                   </div>

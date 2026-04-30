@@ -51,22 +51,44 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [feedReviews, setFeedReviews] = useState([])
   const [feedLoading, setFeedLoading] = useState(false)
+  const [nextGP, setNextGP] = useState(null)
+  const [countdown, setCountdown] = useState('')
 
   useEffect(() => {
     if (authLoading) return
 
-    supabase
-      .from('races')
-      .select('id, season, round, name, slug, circuit, country, date, poster_url, race_type')
-      .lt('date', TODAY)
-      .order('date', { ascending: false })
-      .limit(4)
-      .then(({ data }) => {
-        setGps(data ?? [])
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    async function loadRaces() {
+      const [{ data: pastData }, { data: nextData }] = await Promise.all([
+        supabase.from('races').select('id, season, round, name, slug, circuit, country, date, poster_url, race_type').lt('date', TODAY).order('date', { ascending: false }).limit(4),
+        supabase.from('races').select('id, season, round, name, slug, circuit, country, date, race_type').gte('date', TODAY).order('date', { ascending: true }).limit(1).maybeSingle(),
+      ])
+      setGps(pastData ?? [])
+      if (nextData) {
+        const daysUntil = Math.ceil((new Date(nextData.date) - new Date(TODAY)) / 86400000)
+        if (daysUntil <= 7) setNextGP(nextData)
+      }
+      setLoading(false)
+    }
+
+    loadRaces().catch(() => setLoading(false))
   }, [authLoading])
+
+  useEffect(() => {
+    if (!nextGP) return
+    const target = new Date(nextGP.date + 'T12:00:00Z')
+    const tick = () => {
+      const diff = target - new Date()
+      if (diff <= 0) { setCountdown('Race day!'); return }
+      const d = Math.floor(diff / 86400000)
+      const h = Math.floor((diff % 86400000) / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setCountdown(`${d}j ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [nextGP])
 
   useEffect(() => {
     if (authLoading) return
@@ -179,6 +201,27 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {nextGP && (
+        <div className="border-b border-line bg-card-hover/40">
+          <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between gap-6">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-f1-red border border-f1-red/40 bg-f1-red/10 rounded px-2 py-0.5">
+                Race Week
+              </span>
+              <Link to={`/gps/${nextGP.season}/${nextGP.slug}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors truncate">
+                {nextGP.name}
+              </Link>
+              {nextGP.circuit && (
+                <span className="hidden sm:block text-xs text-subtle truncate">{nextGP.country}</span>
+              )}
+            </div>
+            {countdown && (
+              <span className="text-sm font-mono font-bold text-white shrink-0 tabular-nums">{countdown}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mx-auto max-w-4xl px-4 py-12 space-y-14">
 
