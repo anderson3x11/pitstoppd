@@ -63,10 +63,7 @@ export default function Home() {
         supabase.from('races').select('id, season, round, name, slug, circuit, country, date, race_type').gte('date', TODAY).order('date', { ascending: true }).limit(1).maybeSingle(),
       ])
       setGps(pastData ?? [])
-      if (nextData) {
-        const daysUntil = Math.ceil((new Date(nextData.date) - new Date(TODAY)) / 86400000)
-        if (daysUntil <= 7) setNextGP(nextData)
-      }
+      if (nextData) setNextGP(nextData)
       setLoading(false)
     }
 
@@ -138,8 +135,8 @@ export default function Home() {
       setFeedLoading(false)
     }
 
-    loadFeed()
-  }, [user, authLoading])
+    loadFeed().catch(() => setFeedLoading(false))
+  }, [user?.id, authLoading])
 
   const gpCards = gps.map((gp) => ({ ...gp, posterUrl: gp.poster_url, raceType: gp.race_type, avgRating: null, reviewCount: null }))
   const latestGP = gpCards[0] ?? null
@@ -207,7 +204,7 @@ export default function Home() {
           <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between gap-6">
             <div className="flex items-center gap-3 min-w-0">
               <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-f1-red border border-f1-red/40 bg-f1-red/10 rounded px-2 py-0.5">
-                Race Week
+                {Math.ceil((new Date(nextGP.date) - new Date(TODAY)) / 86400000) <= 7 ? 'Race Week' : 'Next Race'}
               </span>
               <Link to={`/gps/${nextGP.season}/${nextGP.slug}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors truncate">
                 {nextGP.name}

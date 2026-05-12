@@ -117,71 +117,67 @@ export default function Saisons() {
       {loading ? (
         <p className="text-muted text-sm">Loading…</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {seasonsData.map((s) => {
             const featured = s.champion ?? s.leader
             const teamColor = getTeamColor(featured?.team)
             const teamPhoto = getTeamPhoto(featured?.team)
-            const bgGradient = teamColor
-              ? `linear-gradient(135deg, rgba(${teamColor.rgb[0]},${teamColor.rgb[1]},${teamColor.rgb[2]},0.12) 0%, #141414 60%)`
-              : '#141414'
-            const borderColor = teamColor ? `${teamColor.hex}40` : '#262626'
 
             return (
               <Link
                 key={s.year}
                 to={`/saisons/${s.year}`}
-                className="group relative rounded-xl border overflow-hidden transition-all duration-200 hover:scale-[1.02]"
-                style={{ borderColor, background: bgGradient }}
+                className="group relative rounded-lg overflow-hidden bg-card border border-line transition-all duration-200 hover:border-subtle hover:scale-[1.01]"
               >
-                {/* Team logo watermark */}
+                {/* Team color strip */}
+                {teamColor && (
+                  <div className="h-0.5" style={{ background: teamColor.hex }} />
+                )}
+
                 {teamPhoto && (
-                  <div className="absolute top-4 right-4 pointer-events-none select-none">
-                    <img src={teamPhoto} alt="" className="h-10 w-auto object-contain opacity-15 group-hover:opacity-25 transition-opacity" />
+                  <div className="absolute top-4 right-3 pointer-events-none select-none">
+                    <img src={teamPhoto} alt="" className="h-7 w-auto object-contain opacity-10 group-hover:opacity-20 transition-opacity" />
                   </div>
                 )}
 
-                <div className="relative px-6 py-6 space-y-4">
+                <div className="relative px-5 py-4 space-y-2.5">
                   {/* Year */}
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-black text-white group-hover:text-f1-red transition-colors">{s.year}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl font-black text-white group-hover:text-f1-red transition-colors">{s.year}</span>
                     {!s.champion && (
-                      <span className="text-xs font-medium text-subtle border border-line rounded px-2 py-0.5">In progress</span>
+                      <span className="text-[10px] font-medium text-subtle border border-line rounded px-1.5 py-px">In progress</span>
                     )}
                   </div>
 
-                  {/* Champion or Leader */}
-                  {featured && (
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-semibold uppercase tracking-widest text-subtle">
-                        {s.champion ? 'Champion' : 'Leader'}
-                      </span>
-                      <div className="h-px flex-1 bg-line" />
-                    </div>
-                  )}
-                  {featured && (
+                  {/* Champion / Leader */}
+                  {featured ? (
                     <div>
-                      <p className="text-lg font-black text-white">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-subtle mb-1">
+                        {s.champion ? 'Champion' : 'Leader'}
+                      </p>
+                      <p className="text-sm font-bold text-white leading-snug">
                         {featured.driver}
                         {s.leader && !s.champion && featured.points && (
-                          <span className="text-sm font-bold text-muted ml-2">{featured.points} pts</span>
+                          <span className="text-xs font-normal text-subtle ml-1.5">{featured.points} pts</span>
                         )}
                       </p>
-                      <p className="text-sm text-muted" style={{ color: teamColor?.hex }}>{featured.team}</p>
+                      <p className="text-xs font-medium mt-0.5" style={{ color: teamColor?.hex ?? '#a3a3a3' }}>
+                        {featured.team}
+                      </p>
                     </div>
+                  ) : (
+                    <div className="h-10" />
                   )}
 
-                  {/* Stats row */}
-                  <div className="flex items-center gap-5 pt-1">
-                    <div>
-                      <p className="text-xl font-black text-white">{s.raceCount}</p>
-                      <p className="text-[10px] text-subtle uppercase tracking-wide">Races</p>
-                    </div>
+                  {/* Stats */}
+                  <div className="flex items-center gap-3 text-[11px] text-subtle pt-0.5">
+                    <span>{s.raceCount} races</span>
                     {s.avgRating != null && (
-                      <div>
-                        <p className="text-xl font-black text-star">{s.avgRating}</p>
-                        <p className="text-[10px] text-subtle uppercase tracking-wide">{s.ratingCount} ratings</p>
-                      </div>
+                      <>
+                        <span>·</span>
+                        <span className="text-star">★ {s.avgRating}</span>
+                        <span className="text-subtle">({s.ratingCount})</span>
+                      </>
                     )}
                   </div>
                 </div>

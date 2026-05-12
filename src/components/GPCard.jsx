@@ -19,6 +19,11 @@ import { getCountryFlag } from "../lib/countryFlags";
  */
 export default function GPCard({ gp }) {
   const href = `/gps/${gp.season}/${gp.slug}`;
+  const isSprint = gp.raceType === "sprint";
+
+  const displayName = isSprint
+    ? gp.name.replace(/ Sprint$/, "")
+    : gp.name;
 
   const formattedDate = gp.date
     ? new Date(gp.date).toLocaleDateString("en-US", {
@@ -34,7 +39,7 @@ export default function GPCard({ gp }) {
       className="group block transition-transform duration-150 hover:scale-[1.02]"
     >
       <div
-        className={`rounded-lg overflow-hidden bg-card border-2 transition-colors duration-150 ${gp.raceType === "sprint" ? "border-white/70 hover:border-white/90" : "border-line hover:border-subtle"}`}
+        className={`rounded-lg overflow-hidden bg-card border-2 transition-colors duration-150 ${isSprint ? "border-amber-500/50 hover:border-amber-500/80" : "border-line hover:border-subtle"}`}
       >
         {/* Poster */}
         <div className="aspect-[2/3] bg-card-hover relative overflow-hidden">
@@ -42,31 +47,33 @@ export default function GPCard({ gp }) {
             <img
               src={gp.posterUrl}
               alt={gp.name}
+              loading="lazy"
               className="h-full w-full object-cover"
             />
           ) : (
-            // Styled placeholder when no image
             <div className="h-full w-full flex flex-col items-center justify-center p-3 bg-gradient-to-b from-card-hover to-card">
               <span className="text-4xl mb-2">
                 {getCountryFlag(gp.country)}
               </span>
               <span className="text-center text-[11px] font-medium text-subtle uppercase tracking-wide leading-tight">
-                {gp.name}
+                {displayName}
               </span>
             </div>
-          )}
-          {gp.raceType === "sprint" && (
-            <span className="absolute top-2 right-2 px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider bg-white/90 text-black shadow-lg backdrop-blur-sm">
-              Sprint
-            </span>
           )}
         </div>
 
         {/* Infos */}
         <div className="p-2.5 space-y-1">
-          <p className="text-[11px] text-subtle">{gp.season}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[11px] text-subtle">{gp.season}</p>
+            {isSprint && (
+              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 border border-amber-400/40 rounded px-1 py-px leading-none">
+                Sprint
+              </span>
+            )}
+          </div>
           <h3 className="text-xs font-semibold text-white leading-snug line-clamp-2">
-            {gp.name}
+            {displayName}
           </h3>
           {formattedDate && (
             <p className="text-[11px] text-subtle">{formattedDate}</p>

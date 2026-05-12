@@ -3,46 +3,65 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { getDriverPhoto } from '../lib/driverPhotos'
+import { getTeamColor } from '../lib/teamColors'
+import { getDriverStandings } from '../lib/f1api'
 
-function PiloteCard({ pilote, wins, isChampion }) {
+function PiloteCard({ pilote, wins, team }) {
   const initiales = [pilote.given_name, pilote.family_name]
     .filter(Boolean)
     .map((n) => n[0])
     .join('')
 
+  const teamColor = team ? getTeamColor(team) : null
+  const photo = getDriverPhoto(pilote)
+
   return (
     <Link to={`/pilotes/${pilote.id}`} className="group block">
-      <div className={`rounded-lg overflow-hidden bg-card border transition-colors duration-150 ${isChampion ? 'border-2 border-yellow-500/70 hover:border-yellow-400 ring-2 ring-yellow-500/20' : 'border-line hover:border-subtle'}`}>
+      <div className="rounded-lg overflow-hidden bg-card border border-line hover:border-subtle transition-colors duration-150">
 
-        {/* Visuel */}
-        <div className="aspect-[2/3] bg-card-hover relative overflow-hidden">
-          {getDriverPhoto(pilote) ? (
+        {/* Photo */}
+        <div className="aspect-[3/4] bg-card-hover relative overflow-hidden">
+          {photo ? (
             <img
-              src={getDriverPhoto(pilote)}
+              src={photo}
               alt={`${pilote.given_name} ${pilote.family_name}`}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
             <div className="h-full w-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-card-hover to-card p-3">
               {pilote.number != null && (
-                <span className="text-3xl font-black text-subtle leading-none">
-                  {pilote.number}
-                </span>
+                <span className="text-4xl font-black text-subtle leading-none">{pilote.number}</span>
               )}
-              <span className="text-lg font-bold text-subtle">{initiales}</span>
+              <span className="text-xl font-bold text-subtle">{initiales}</span>
             </div>
+          )}
+
+          {/* Team color strip at bottom */}
+          {teamColor && (
+            <div
+              className="absolute bottom-0 left-0 right-0 h-0.5"
+              style={{ background: teamColor.hex }}
+            />
           )}
         </div>
 
         {/* Infos */}
-        <div className="p-2.5 space-y-0.5">
-          <p className="text-xs font-semibold text-white leading-snug line-clamp-2">
+        <div className="px-2.5 py-2 space-y-0.5">
+          <p className="text-xs font-bold text-white leading-snug truncate">
             {pilote.given_name} {pilote.family_name}
           </p>
-          <p className="text-[11px] text-subtle">{pilote.nationality}</p>
-          <p className="text-[11px] text-muted">
-            {wins} win{wins !== 1 ? 's' : ''}
-          </p>
+          <p className="text-[11px] text-subtle truncate">{pilote.nationality}</p>
+          {team ? (
+            <p
+              className="text-[11px] font-medium truncate"
+              style={{ color: teamColor?.hex ?? '#a3a3a3' }}
+            >
+              {team}
+            </p>
+          ) : (
+            <p className="text-[11px] text-muted">{wins} win{wins !== 1 ? 's' : ''}</p>
+          )}
         </div>
       </div>
     </Link>
@@ -55,6 +74,7 @@ export default function Pilotes() {
   const [currentIds, setCurrentIds] = useState(new Set())
   const [latestSeason, setLatestSeason] = useState(null)
   const [winsMap, setWinsMap] = useState({})
+  const [teamMap, setTeamMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
@@ -62,49 +82,49 @@ export default function Pilotes() {
     if (authLoading) return
 
     async function load() {
-      // 1. Fetch races metadata (small table, no join needed)
       const { data: racesData } = await supabase
         .from('races')
         .select('id, season, race_type')
 
-      const latestSeason = racesData?.length
+      const latest = racesData?.length
         ? Math.max(...racesData.map((r) => r.season))
         : new Date().getFullYear()
-      setLatestSeason(latestSeason)
+      setLatestSeason(latest)
 
-      // Build lookups from races
       const raceIsRace = new Set()
       const seasonRaceIds = []
       for (const r of racesData ?? []) {
         if (r.race_type === 'race') raceIsRace.add(r.id)
-        if (r.season === latestSeason) seasonRaceIds.push(r.id)
+        if (r.season === latest) seasonRaceIds.push(r.id)
       }
 
-      // 2. Parallel: drivers + current season entries + all P1 (no cross-table joins)
+      const standingsCacheKey = `standings_${latest}`
+      let cachedStandings = null
+      try {
+        const raw = sessionStorage.getItem(standingsCacheKey)
+        if (raw) cachedStandings = JSON.parse(raw)
+      } catch { /* ignore */ }
+
       const [
         { data: driversData },
         { data: currentData },
         { data: winsData },
+        freshStandings,
       ] = await Promise.all([
-        supabase
-          .from('drivers')
-          .select('id, given_name, family_name, nationality, photo_url, number'),
-
-        supabase
-          .from('race_drivers')
-          .select('driver_id')
-          .in('race_id', seasonRaceIds),
-
-        supabase
-          .from('race_drivers')
-          .select('driver_id, race_id')
-          .eq('position', 1),
+        supabase.from('drivers').select('id, given_name, family_name, nationality, photo_url, number'),
+        supabase.from('race_drivers').select('driver_id').in('race_id', seasonRaceIds),
+        supabase.from('race_drivers').select('driver_id, race_id').eq('position', 1),
+        cachedStandings ? Promise.resolve(cachedStandings) : getDriverStandings(latest).catch(() => null),
       ])
+
+      const standings = freshStandings
+      if (!cachedStandings && standings) {
+        try { sessionStorage.setItem(standingsCacheKey, JSON.stringify(standings)) } catch { /* ignore */ }
+      }
 
       const ids = new Set(currentData?.map((r) => r.driver_id) ?? [])
       setCurrentIds(ids)
 
-      // Count wins for races only (filter sprints client-side)
       const wins = {}
       for (const row of winsData ?? []) {
         if (raceIsRace.has(row.race_id)) {
@@ -112,6 +132,13 @@ export default function Pilotes() {
         }
       }
       setWinsMap(wins)
+
+      const teams = {}
+      for (const s of standings?.DriverStandings ?? []) {
+        const team = s.Constructors?.[0]?.name
+        if (team) teams[s.Driver.driverId] = team
+      }
+      setTeamMap(teams)
 
       setDrivers(driversData ?? [])
       setLoading(false)
@@ -173,29 +200,27 @@ export default function Pilotes() {
       ) : (
         <div className="space-y-10">
 
-          {/* Current Grid */}
           {current.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold text-muted uppercase tracking-widest mb-4">
                 {latestSeason} Grid
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
                 {current.map((p) => (
-                  <PiloteCard key={p.id} pilote={p} wins={winsMap[p.id] ?? 0} isChampion={p.number === 1} />
+                  <PiloteCard key={p.id} pilote={p} wins={winsMap[p.id] ?? 0} team={teamMap[p.id] ?? null} />
                 ))}
               </div>
             </section>
           )}
 
-          {/* Former drivers */}
           {retired.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold text-muted uppercase tracking-widest mb-4">
                 Former Drivers
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
                 {retired.map((p) => (
-                  <PiloteCard key={p.id} pilote={p} wins={winsMap[p.id] ?? 0} />
+                  <PiloteCard key={p.id} pilote={p} wins={winsMap[p.id] ?? 0} team={null} />
                 ))}
               </div>
             </section>

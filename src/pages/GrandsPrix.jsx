@@ -150,15 +150,13 @@ export default function GrandsPrix() {
             </button>
           ))}
         </div>
-      </div>
 
-      {saisonActive !== 0 && (
-        <div className="mb-6">
-          <Link to={`/saisons/${saisonActive}`} className="text-sm text-muted hover:text-white transition-colors">
-            View {saisonActive} season overview →
+        {saisonActive !== 0 && (
+          <Link to={`/saisons/${saisonActive}`} className="ml-auto text-sm text-muted hover:text-white transition-colors shrink-0">
+            {saisonActive} season overview →
           </Link>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Content */}
       {error ? (
