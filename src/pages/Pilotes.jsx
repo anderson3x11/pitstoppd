@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getTeamColor } from '../lib/teamColors'
 import { getDriverStandings } from '../lib/f1api'
+import { getPageCache, setPageCache } from '../lib/pageCache'
 
 function PiloteCard({ pilote, wins, team }) {
   const initiales = [pilote.given_name, pilote.family_name]
@@ -81,6 +82,16 @@ export default function Pilotes() {
   useEffect(() => {
     if (authLoading) return
 
+    const cached = getPageCache('pilotes')
+    if (cached) {
+      setDrivers(cached.drivers)
+      setCurrentIds(cached.currentIds)
+      setLatestSeason(cached.latestSeason)
+      setWinsMap(cached.winsMap)
+      setTeamMap(cached.teamMap)
+      setLoading(false)
+    }
+
     async function load() {
       const { data: racesData } = await supabase
         .from('races')
@@ -129,6 +140,13 @@ export default function Pilotes() {
       setTeamMap(teams)
 
       setDrivers(driversData ?? [])
+      setPageCache('pilotes', {
+        drivers: driversData ?? [],
+        currentIds: ids,
+        latestSeason: latest,
+        winsMap: wins,
+        teamMap: teams,
+      })
       setLoading(false)
     }
 

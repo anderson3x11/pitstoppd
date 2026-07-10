@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { TODAY, FIRST_SEASON } from '../lib/constants'
 import { computeAvgRating } from '../lib/ratingUtils'
+import { getPageCache, setPageCache } from '../lib/pageCache'
 
 function buildSeasonsList(latestSeason) {
   const seasons = []
@@ -41,7 +42,13 @@ export default function GrandsPrix() {
   }, [authLoading])
 
   useEffect(() => {
-    setLoading(true)
+    const cached = getPageCache(`gps:${saisonActive}`)
+    if (cached) {
+      setGps(cached)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     setError(null)
 
     const fetchData = async () => {
@@ -65,6 +72,7 @@ export default function GrandsPrix() {
 
       if (races.length === 0) {
         setGps([])
+        setPageCache(`gps:${saisonActive}`, [])
         setLoading(false)
         return
       }
@@ -96,6 +104,7 @@ export default function GrandsPrix() {
       })
 
       setGps(enriched)
+      setPageCache(`gps:${saisonActive}`, enriched)
       setLoading(false)
     }
 

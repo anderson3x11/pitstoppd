@@ -7,6 +7,7 @@ import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
 import { TODAY, FIRST_SEASON } from '../lib/constants'
 import { computeAvgRating } from '../lib/ratingUtils'
+import { getPageCache, setPageCache } from '../lib/pageCache'
 
 const CHAMPIONS = {
   2025: { driver: 'Lando Norris', team: 'McLaren' },
@@ -44,6 +45,12 @@ export default function Saisons() {
 
   useEffect(() => {
     if (authLoading) return
+
+    const cached = getPageCache('saisons')
+    if (cached) {
+      setSeasonsData(cached)
+      setLoading(false)
+    }
 
     async function load() {
       // Fetch race counts and avg ratings per season (parallel)
@@ -103,6 +110,7 @@ export default function Saisons() {
       }
 
       setSeasonsData(seasons)
+      setPageCache('saisons', seasons)
       setLoading(false)
     }
 

@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth'
 import { getCountryFlag } from '../lib/countryFlags'
 
 import { TODAY } from '../lib/constants'
+import { getPageCache, setPageCache } from '../lib/pageCache'
 
 function FeedCard({ entry }) {
   return (
@@ -80,6 +81,13 @@ export default function Home() {
   useEffect(() => {
     if (authLoading) return
 
+    const cached = getPageCache('home:races')
+    if (cached) {
+      setGps(cached.gps)
+      setNextGP(cached.nextGP)
+      setLoading(false)
+    }
+
     async function loadRaces() {
       const [{ data: pastData }, { data: nextData }] = await Promise.all([
         supabase.from('races').select('id, season, round, name, slug, circuit, country, date, poster_url, race_type').lt('date', TODAY).order('date', { ascending: false }).limit(4),
@@ -87,6 +95,7 @@ export default function Home() {
       ])
       setGps(pastData ?? [])
       if (nextData) setNextGP(nextData)
+      setPageCache('home:races', { gps: pastData ?? [], nextGP: nextData ?? null })
       setLoading(false)
     }
 
@@ -97,7 +106,9 @@ export default function Home() {
     if (authLoading) return
     if (!user) { setFeedReviews([]); return }
 
-    setFeedLoading(true)
+    const cachedFeed = getPageCache(`home:feed:${user.id}`)
+    if (cachedFeed) setFeedReviews(cachedFeed)
+    else setFeedLoading(true)
 
     async function loadFeed() {
       const { data: followsData } = await supabase
@@ -125,7 +136,7 @@ export default function Home() {
       const profileMap = {}
       for (const p of profilesData ?? []) profileMap[p.id] = p
 
-      setFeedReviews(ratingsData.map((r) => ({
+      const feed = ratingsData.map((r) => ({
         id: r.id,
         created_at: r.created_at,
         username: profileMap[r.user_id]?.username,
@@ -136,7 +147,9 @@ export default function Home() {
         posterUrl: r.races?.poster_url ?? null,
         raceCountry: r.races?.country ?? null,
         rating: r.score,
-      })))
+      }))
+      setFeedReviews(feed)
+      setPageCache(`home:feed:${user.id}`, feed)
 
       setFeedLoading(false)
     }

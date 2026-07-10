@@ -8,6 +8,7 @@ import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
 import { TODAY } from '../lib/constants'
 import { computeAvgRating, groupRatingsByRace } from '../lib/ratingUtils'
+import { getPageCache, setPageCache } from '../lib/pageCache'
 
 export default function Saison() {
   const { annee } = useParams()
@@ -24,11 +25,20 @@ export default function Saison() {
   useEffect(() => {
     if (authLoading) return
 
-    setLoading(true)
-    setDriverStandings(null)
-    setConstructorStandings(null)
-    setSeasonStats(null)
-    setTopRatedRaces([])
+    const cached = getPageCache(`saison:${season}`)
+    if (cached) {
+      setDriverStandings(cached.driverStandings)
+      setConstructorStandings(cached.constructorStandings)
+      setSeasonStats(cached.seasonStats)
+      setTopRatedRaces(cached.topRatedRaces)
+      setLoading(false)
+    } else {
+      setLoading(true)
+      setDriverStandings(null)
+      setConstructorStandings(null)
+      setSeasonStats(null)
+      setTopRatedRaces([])
+    }
     setTab('drivers')
 
     async function load() {
@@ -49,6 +59,8 @@ export default function Saison() {
       setConstructorStandings(constructorRes)
 
       const races = racesRes.data ?? []
+      let stats = { raceCount: 0, totalRatings: 0, avgRating: null }
+      let topRated = []
 
       if (races.length > 0) {
         const raceIds = races.map((r) => r.id)
@@ -60,25 +72,27 @@ export default function Saison() {
         const scoresByRace = groupRatingsByRace(ratingsData)
         const allScores = (ratingsData ?? []).map((r) => r.score)
 
-        const avgSeason = computeAvgRating(allScores)
-
-        setSeasonStats({
+        stats = {
           raceCount: races.length,
           totalRatings: allScores.length,
-          avgRating: avgSeason,
-        })
+          avgRating: computeAvgRating(allScores),
+        }
 
         // Top rated races
-        const raceAvgs = races.map((race) => {
+        topRated = races.map((race) => {
           const scores = scoresByRace[race.id] ?? []
           return { ...race, avg: computeAvgRating(scores), ratingCount: scores.length }
         }).filter((r) => r.avg != null).sort((a, b) => b.avg - a.avg).slice(0, 5)
-
-        setTopRatedRaces(raceAvgs)
-      } else {
-        setSeasonStats({ raceCount: 0, totalRatings: 0, avgRating: null })
       }
 
+      setSeasonStats(stats)
+      setTopRatedRaces(topRated)
+      setPageCache(`saison:${season}`, {
+        driverStandings: driverRes,
+        constructorStandings: constructorRes,
+        seasonStats: stats,
+        topRatedRaces: topRated,
+      })
       setLoading(false)
     }
 

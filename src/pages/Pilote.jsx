@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getWDC } from '../lib/driverWDC'
 import { TODAY } from '../lib/constants'
+import { getPageCache, setPageCache } from '../lib/pageCache'
 
 export default function Pilote() {
   const { id } = useParams()
@@ -17,7 +18,15 @@ export default function Pilote() {
   useEffect(() => {
     if (authLoading) return
 
-    setLoading(true)
+    const cached = getPageCache(`pilote:${id}`)
+    if (cached) {
+      setPilote(cached.pilote)
+      setStats(cached.stats)
+      setDerniersGPs(cached.derniersGPs)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
 
     async function load() {
       // Parallel: driver info + race entries + races metadata
@@ -48,13 +57,16 @@ export default function Pilote() {
 
       const racesOnly = entries.filter((rd) => rd.races.race_type === 'race')
 
-      setStats({
+      const newStats = {
         wins: racesOnly.filter((rd) => rd.position === 1).length,
         podiums: racesOnly.filter((rd) => rd.position != null && rd.position <= 3).length,
         courses: racesOnly.length,
-      })
+      }
+      const recent = entries.filter((rd) => rd.races.date < TODAY).slice(0, 10)
 
-      setDerniersGPs(entries.filter((rd) => rd.races.date < TODAY).slice(0, 10))
+      setStats(newStats)
+      setDerniersGPs(recent)
+      setPageCache(`pilote:${id}`, { pilote: driverData, stats: newStats, derniersGPs: recent })
       setLoading(false)
     }
 

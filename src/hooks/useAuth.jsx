@@ -25,17 +25,13 @@ export function AuthProvider({ children }) {
       if (mounted) setLoading(false)
     }, 4000)
 
-    // Load initial session
+    // Load initial session — le profil charge en arrière-plan, il ne doit pas
+    // bloquer le rendu des pages (elles n'ont besoin que de `user`)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return
       setUser(session?.user ?? null)
-      if (session?.user) {
-        loadProfile(session.user.id).finally(() => {
-          if (mounted) setLoading(false)
-        })
-      } else {
-        setLoading(false)
-      }
+      setLoading(false)
+      if (session?.user) loadProfile(session.user.id)
     }).catch(() => {
       if (mounted) setLoading(false)
     })
