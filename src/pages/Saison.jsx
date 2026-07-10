@@ -200,7 +200,7 @@ export default function Saison() {
 
                       <div className="w-8 h-8 rounded-full bg-card-hover border border-line overflow-hidden shrink-0">
                         {photo ? (
-                          <img src={photo} alt={d.familyName} className="w-full h-full object-cover object-top" />
+                          <img src={photo} alt={d.familyName} loading="lazy" className="w-full h-full object-cover object-top" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <span className="text-[10px] font-bold text-subtle">{d.givenName?.[0]}{d.familyName?.[0]}</span>

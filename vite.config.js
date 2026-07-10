@@ -10,9 +10,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          supabase: ['@supabase/supabase-js'],
+        // Forme fonction : capture tous les sous-modules (ex: react-dom/client),
+        // la forme objet dupliquait react-dom entre vendor et index
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('@supabase')) return 'supabase'
+          return 'vendor'
         },
       },
     },

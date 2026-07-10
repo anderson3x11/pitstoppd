@@ -98,29 +98,17 @@ export default function Pilotes() {
         if (r.season === latest) seasonRaceIds.push(r.id)
       }
 
-      const standingsCacheKey = `standings_${latest}`
-      let cachedStandings = null
-      try {
-        const raw = sessionStorage.getItem(standingsCacheKey)
-        if (raw) cachedStandings = JSON.parse(raw)
-      } catch { /* ignore */ }
-
       const [
         { data: driversData },
         { data: currentData },
         { data: winsData },
-        freshStandings,
+        standings,
       ] = await Promise.all([
         supabase.from('drivers').select('id, given_name, family_name, nationality, photo_url, number'),
         supabase.from('race_drivers').select('driver_id').in('race_id', seasonRaceIds),
         supabase.from('race_drivers').select('driver_id, race_id').eq('position', 1),
-        cachedStandings ? Promise.resolve(cachedStandings) : getDriverStandings(latest).catch(() => null),
+        getDriverStandings(latest).catch(() => null),
       ])
-
-      const standings = freshStandings
-      if (!cachedStandings && standings) {
-        try { sessionStorage.setItem(standingsCacheKey, JSON.stringify(standings)) } catch { /* ignore */ }
-      }
 
       const ids = new Set(currentData?.map((r) => r.driver_id) ?? [])
       setCurrentIds(ids)

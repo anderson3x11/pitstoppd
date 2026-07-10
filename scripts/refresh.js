@@ -115,6 +115,7 @@ async function main() {
   const raceRows = races.map((race) => ({
     season: parseInt(race.season),
     round: parseInt(race.round),
+    race_type: 'race',
     name: race.raceName,
     slug: toSlug(race.Circuit.circuitId),
     circuit: race.Circuit.circuitName,
@@ -123,15 +124,45 @@ async function main() {
   }))
 
   // 2. Upsert races
+  // onConflict doit matcher la contrainte UNIQUE(season, round, race_type)
   const { data: upsertedRaces, error: racesError } = await supabase
     .from('races')
-    .upsert(raceRows, { onConflict: 'season,round' })
+    .upsert(raceRows, { onConflict: 'season,round,race_type' })
     .select('id, round')
 
   if (racesError) throw racesError
   console.log(`  ${upsertedRaces.length} races upserted`)
 
   const raceMap = Object.fromEntries(upsertedRaces.map((r) => [r.round, r.id]))
+
+  // 2b. Upsert sprints — le calendrier expose le champ Sprint pour les rounds concernés,
+  // y compris les sprints à venir (contrairement à /sprint.json qui ne liste que les courus)
+  const sprintRows = races
+    .filter((race) => race.Sprint)
+    .map((race) => ({
+      season: parseInt(race.season),
+      round: parseInt(race.round),
+      race_type: 'sprint',
+      name: race.raceName.replace('Grand Prix', 'Grand Prix Sprint'),
+      slug: toSlug(race.Circuit.circuitId) + '-sprint',
+      circuit: race.Circuit.circuitName,
+      country: race.Circuit.Location.country,
+      date: race.Sprint.date,
+    }))
+
+  const sprintMap = {}
+  if (sprintRows.length > 0) {
+    const { data: upsertedSprints, error: sprintsError } = await supabase
+      .from('races')
+      .upsert(sprintRows, { onConflict: 'season,round,race_type' })
+      .select('id, round')
+
+    if (sprintsError) throw sprintsError
+    console.log(`  ${upsertedSprints.length} sprints upserted`)
+    for (const r of upsertedSprints) sprintMap[r.round] = r.id
+  } else {
+    console.log('  No sprints in this season\'s calendar')
+  }
 
   await sleep(500)
 
@@ -165,6 +196,39 @@ async function main() {
         grid_position: parseInt(result.grid) || null,
         status: result.status,
       })
+    }
+  }
+
+  // 3b. Fetch sprint results (paginated)
+  if (Object.keys(sprintMap).length > 0) {
+    await sleep(500)
+    console.log('Fetching sprint results…')
+    const sprintResults = await fetchAllPages(`${CURRENT_SEASON}/sprint.json`)
+
+    for (const race of sprintResults) {
+      const sprintId = sprintMap[parseInt(race.round)]
+      if (!sprintId) continue
+
+      for (const result of race.SprintResults ?? []) {
+        const d = result.Driver
+
+        driversMap[d.driverId] = {
+          id: d.driverId,
+          given_name: d.givenName,
+          family_name: d.familyName,
+          nationality: d.nationality,
+          date_of_birth: d.dateOfBirth ?? null,
+          number: parseInt(d.permanentNumber) || null,
+        }
+
+        raceDriverRows.push({
+          race_id: sprintId,
+          driver_id: d.driverId,
+          position: parsePosition(result.positionText, result.position),
+          grid_position: parseInt(result.grid) || null,
+          status: result.status,
+        })
+      }
     }
   }
 

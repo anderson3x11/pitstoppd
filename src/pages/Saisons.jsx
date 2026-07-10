@@ -69,23 +69,25 @@ export default function Saisons() {
 
       const maxSeason = Math.max(...Object.keys(racesBySeason).map(Number), FIRST_SEASON)
 
-      // Fetch standings for seasons without a champion (current/in-progress)
+      // Fetch standings for seasons without a champion (current/in-progress) — parallel
       const leaders = {}
+      const missingYears = []
       for (let y = maxSeason; y >= FIRST_SEASON; y--) {
-        if (!CHAMPIONS[y]) {
-          try {
-            const standings = await getDriverStandings(y)
-            const leader = standings?.DriverStandings?.[0]
-            if (leader) {
-              leaders[y] = {
-                driver: `${leader.Driver.givenName} ${leader.Driver.familyName}`,
-                team: leader.Constructors?.[0]?.name,
-                points: leader.points,
-              }
-            }
-          } catch { /* no standings yet */ }
-        }
+        if (!CHAMPIONS[y]) missingYears.push(y)
       }
+      await Promise.all(missingYears.map(async (y) => {
+        try {
+          const standings = await getDriverStandings(y)
+          const leader = standings?.DriverStandings?.[0]
+          if (leader) {
+            leaders[y] = {
+              driver: `${leader.Driver.givenName} ${leader.Driver.familyName}`,
+              team: leader.Constructors?.[0]?.name,
+              points: leader.points,
+            }
+          }
+        } catch { /* no standings yet */ }
+      }))
 
       const seasons = []
       for (let y = maxSeason; y >= FIRST_SEASON; y--) {
@@ -136,7 +138,7 @@ export default function Saisons() {
 
                 {teamPhoto && (
                   <div className="absolute top-4 right-3 pointer-events-none select-none">
-                    <img src={teamPhoto} alt="" className="h-7 w-auto object-contain opacity-10 group-hover:opacity-20 transition-opacity" />
+                    <img src={teamPhoto} alt="" loading="lazy" className="h-7 w-auto object-contain opacity-10 group-hover:opacity-20 transition-opacity" />
                   </div>
                 )}
 

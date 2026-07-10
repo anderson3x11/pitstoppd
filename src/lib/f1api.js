@@ -1,9 +1,19 @@
 const BASE = 'https://api.jolpi.ca/ergast/f1'
 
+// Cache sessionStorage : évite de re-fetcher Jolpica à chaque navigation
 async function fetchJson(url) {
+  const cacheKey = `jolpica:${url}`
+  try {
+    const cached = sessionStorage.getItem(cacheKey)
+    if (cached) return JSON.parse(cached)
+  } catch { /* ignore */ }
+
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Jolpica ${res.status} — ${url}`)
-  return res.json()
+  const data = await res.json()
+
+  try { sessionStorage.setItem(cacheKey, JSON.stringify(data)) } catch { /* quota plein — ignore */ }
+  return data
 }
 
 // Toutes les courses d'une saison (calendrier)

@@ -160,6 +160,7 @@ export default function GrandPrix() {
     setUserReview(null)
     setUserLikes(new Set())
     setShowReviewModal(false)
+    setReviews([])
 
     async function load() {
       const { data: raceData } = await supabase
@@ -176,10 +177,33 @@ export default function GrandPrix() {
         return
       }
 
-      const { data: rdData } = await supabase
-        .from('race_drivers')
-        .select('position, grid_position, status, driver_id, drivers(id, given_name, family_name)')
-        .eq('race_id', raceData.id)
+      // Toutes ces requêtes ne dépendent que de raceData.id → parallèles
+      const [
+        { data: rdData },
+        { data: ratingsData },
+        { data: followsData },
+        { data: reviewsData },
+        { data: myRating },
+        { data: myReview },
+      ] = await Promise.all([
+        supabase
+          .from('race_drivers')
+          .select('position, grid_position, status, driver_id, drivers(id, given_name, family_name)')
+          .eq('race_id', raceData.id),
+        supabase.from('ratings').select('score').eq('race_id', raceData.id),
+        user
+          ? supabase.from('follows').select('following_id').eq('follower_id', user.id)
+          : Promise.resolve({ data: null }),
+        supabase
+          .from('reviews').select('id, content, spoiler, created_at, user_id')
+          .eq('race_id', raceData.id).order('created_at', { ascending: false }),
+        user
+          ? supabase.from('ratings').select('score').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        user
+          ? supabase.from('reviews').select('id, content, spoiler').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ])
 
       if (rdData && rdData.length > 0) {
         setRaceDrivers(rdData)
@@ -201,28 +225,22 @@ export default function GrandPrix() {
         }
       }
 
-      const { data: ratingsData } = await supabase.from('ratings').select('score').eq('race_id', raceData.id)
       setAvgRating(computeAvgRating(ratingsData?.map((r) => r.score)))
-
-      // Fetch following IDs if logged in
-      if (user) {
-        const { data: followsData } = await supabase
-          .from('follows').select('following_id').eq('follower_id', user.id)
-        setFollowingIds(new Set((followsData ?? []).map((f) => f.following_id)))
-      }
-
-      const { data: reviewsData } = await supabase
-        .from('reviews').select('id, content, spoiler, created_at, user_id')
-        .eq('race_id', raceData.id).order('created_at', { ascending: false })
+      setFollowingIds(new Set((followsData ?? []).map((f) => f.following_id)))
       setReviewCount(reviewsData?.length ?? 0)
+      setUserRating(myRating?.score ?? null)
+      setUserReview(myReview ?? null)
 
       if (reviewsData?.length) {
         const reviewIds = reviewsData.map((r) => r.id)
         const userIds = [...new Set(reviewsData.map((r) => r.user_id))]
-        const [{ data: profilesData }, { data: userRatings }, { data: likesData }] = await Promise.all([
+        const [{ data: profilesData }, { data: userRatings }, { data: likesData }, { data: myLikes }] = await Promise.all([
           supabase.from('profiles').select('id, username, display_name').in('id', userIds),
           supabase.from('ratings').select('user_id, score').eq('race_id', raceData.id).in('user_id', userIds),
           supabase.from('likes').select('review_id').in('review_id', reviewIds),
+          user
+            ? supabase.from('likes').select('review_id').eq('user_id', user.id).in('review_id', reviewIds)
+            : Promise.resolve({ data: null }),
         ])
         const profileMap = {}
         for (const p of profilesData ?? []) profileMap[p.id] = p
@@ -239,23 +257,7 @@ export default function GrandPrix() {
           likes: likesMap[r.id] ?? 0,
         })))
 
-        if (user) {
-          const [{ data: myRating }, { data: myReview }, { data: myLikes }] = await Promise.all([
-            supabase.from('ratings').select('score').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle(),
-            supabase.from('reviews').select('id, content, spoiler').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle(),
-            supabase.from('likes').select('review_id').eq('user_id', user.id).in('review_id', reviewIds),
-          ])
-          setUserRating(myRating?.score ?? null)
-          setUserReview(myReview ?? null)
-          setUserLikes(new Set((myLikes ?? []).map((l) => l.review_id)))
-        }
-      } else if (user) {
-        const [{ data: myRating }, { data: myReview }] = await Promise.all([
-          supabase.from('ratings').select('score').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle(),
-          supabase.from('reviews').select('id, content, spoiler').eq('user_id', user.id).eq('race_id', raceData.id).maybeSingle(),
-        ])
-        setUserRating(myRating?.score ?? null)
-        setUserReview(myReview ?? null)
+        setUserLikes(new Set((myLikes ?? []).map((l) => l.review_id)))
       }
 
       setLoading(false)

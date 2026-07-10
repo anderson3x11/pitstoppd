@@ -169,7 +169,7 @@ export default function Profil() {
     }
 
     load()
-  }, [username, user, authLoading])
+  }, [username, user?.id, authLoading])
 
   const handleFollow = async () => {
     if (!user || !profil) return
@@ -320,6 +320,7 @@ export default function Profil() {
                               <img
                                 src={photo}
                                 alt={`${driver.given_name} ${driver.family_name}`}
+                                loading="lazy"
                                 className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                               />
                             ) : (

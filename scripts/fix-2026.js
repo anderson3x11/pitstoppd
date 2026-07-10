@@ -52,8 +52,8 @@ const POSTERS_2026 = {
   'zandvoort-sprint': 'https://r2.thesportsdb.com/images/media/event/poster/9oqhzl1774920420.jpg',
   // Round 13 — Italie
   'monza': 'https://r2.thesportsdb.com/images/media/event/poster/rufsbe1774920489.jpg',
-  // Round 14 — Espagne (nouveau circuit Madrid — slug Jolpica à confirmer)
-  'madrid': 'https://r2.thesportsdb.com/images/media/event/poster/pn2qw61774920542.jpg',
+  // Round 14 — Espagne (nouveau circuit Madrid — slug Jolpica : madring)
+  'madring': 'https://r2.thesportsdb.com/images/media/event/poster/pn2qw61774920542.jpg',
   // Round 15 — Azerbaïdjan
   'baku': 'https://r2.thesportsdb.com/images/media/event/poster/4iku4s1774920592.jpg',
   // Round 16 — Singapour
@@ -65,8 +65,8 @@ const POSTERS_2026 = {
   'rodriguez': 'https://r2.thesportsdb.com/images/media/event/poster/1mqjs81774920749.jpg',
   // Round 19 — Brésil
   'interlagos': 'https://r2.thesportsdb.com/images/media/event/poster/rdpsm61774920799.jpg',
-  // Round 20 — Las Vegas
-  'las-vegas': 'https://r2.thesportsdb.com/images/media/event/poster/9yor1a1774920853.jpg',
+  // Round 20 — Las Vegas (slug Jolpica : vegas)
+  'vegas': 'https://r2.thesportsdb.com/images/media/event/poster/9yor1a1774920853.jpg',
   // Round 21 — Qatar
   'losail': 'https://r2.thesportsdb.com/images/media/event/poster/ekm2231774920902.jpg',
   // Round 22 — Abu Dhabi

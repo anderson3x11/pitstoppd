@@ -7,7 +7,7 @@ import { getCountryFlag } from '../lib/countryFlags'
 
 export default function Review() {
   const { saison, slug, username } = useParams()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   const [race, setRace] = useState(null)
   const [review, setReview] = useState(null)
@@ -22,34 +22,30 @@ export default function Review() {
     setLoading(true)
 
     async function load() {
-      // Fetch race
-      const { data: raceData } = await supabase
-        .from('races').select('*')
-        .eq('season', parseInt(saison)).eq('slug', slug).single()
+      // Race et profil du reviewer — indépendants, en parallèle
+      const [{ data: raceData }, { data: profileData }] = await Promise.all([
+        supabase.from('races').select('*')
+          .eq('season', parseInt(saison)).eq('slug', slug).single(),
+        supabase.from('profiles').select('id, username, display_name, avatar_url')
+          .eq('username', username).maybeSingle(),
+      ])
 
       if (!raceData) { setLoading(false); return }
       setRace(raceData)
 
-      // Fetch reviewer profile
-      const { data: profileData } = await supabase
-        .from('profiles').select('id, username, display_name, avatar_url')
-        .eq('username', username).maybeSingle()
-
       if (!profileData) { setLoading(false); return }
       setReviewer(profileData)
 
-      // Fetch review
-      const { data: reviewData } = await supabase
-        .from('reviews').select('id, content, spoiler, created_at')
-        .eq('user_id', profileData.id).eq('race_id', raceData.id).maybeSingle()
+      // Review et note du reviewer — en parallèle
+      const [{ data: reviewData }, { data: ratingData }] = await Promise.all([
+        supabase.from('reviews').select('id, content, spoiler, created_at')
+          .eq('user_id', profileData.id).eq('race_id', raceData.id).maybeSingle(),
+        supabase.from('ratings').select('score')
+          .eq('user_id', profileData.id).eq('race_id', raceData.id).maybeSingle(),
+      ])
 
       if (!reviewData) { setLoading(false); return }
       setReview(reviewData)
-
-      // Fetch reviewer's rating for this race
-      const { data: ratingData } = await supabase
-        .from('ratings').select('score')
-        .eq('user_id', profileData.id).eq('race_id', raceData.id).maybeSingle()
       setReviewerRating(ratingData?.score ?? null)
 
       // Fetch likes with profiles
@@ -90,13 +86,8 @@ export default function Review() {
       await supabase.from('likes').insert({ user_id: user.id, review_id: review.id })
       setIsLiked(true)
       setLikeCount((n) => n + 1)
-      // Add current user to likers if we have their profile info
-      if (user) {
-        const { data: myProfile } = await supabase
-          .from('profiles').select('id, username, display_name, avatar_url')
-          .eq('id', user.id).single()
-        if (myProfile) setLikers((prev) => [...prev, myProfile])
-      }
+      // Profil courant déjà en mémoire via useAuth — pas besoin de re-fetch
+      if (profile) setLikers((prev) => [...prev, profile])
     }
   }
 

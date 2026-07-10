@@ -15,7 +15,7 @@ function FeedCard({ entry }) {
       {/* Poster */}
       <div className="w-20 shrink-0 bg-card-hover overflow-hidden">
         {entry.posterUrl ? (
-          <img src={entry.posterUrl} alt={entry.raceName} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <img src={entry.posterUrl} alt={entry.raceName} loading="lazy" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
             <span className="text-2xl">{getCountryFlag(entry.raceCountry)}</span>
@@ -45,6 +45,30 @@ function FeedCard({ entry }) {
   )
 }
 
+// Composant isolé : le tick chaque seconde ne re-render que ce span, pas toute la Home
+function Countdown({ date }) {
+  const [countdown, setCountdown] = useState('')
+
+  useEffect(() => {
+    const target = new Date(date + 'T12:00:00Z')
+    const tick = () => {
+      const diff = target - new Date()
+      if (diff <= 0) { setCountdown('Race day!'); return }
+      const d = Math.floor(diff / 86400000)
+      const h = Math.floor((diff % 86400000) / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setCountdown(`${d}j ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [date])
+
+  if (!countdown) return null
+  return <span className="text-sm font-mono font-bold text-white shrink-0 tabular-nums">{countdown}</span>
+}
+
 export default function Home() {
   const { user, loading: authLoading } = useAuth()
   const [gps, setGps] = useState([])
@@ -52,7 +76,6 @@ export default function Home() {
   const [feedReviews, setFeedReviews] = useState([])
   const [feedLoading, setFeedLoading] = useState(false)
   const [nextGP, setNextGP] = useState(null)
-  const [countdown, setCountdown] = useState('')
 
   useEffect(() => {
     if (authLoading) return
@@ -69,23 +92,6 @@ export default function Home() {
 
     loadRaces().catch(() => setLoading(false))
   }, [authLoading])
-
-  useEffect(() => {
-    if (!nextGP) return
-    const target = new Date(nextGP.date + 'T12:00:00Z')
-    const tick = () => {
-      const diff = target - new Date()
-      if (diff <= 0) { setCountdown('Race day!'); return }
-      const d = Math.floor(diff / 86400000)
-      const h = Math.floor((diff % 86400000) / 3600000)
-      const m = Math.floor((diff % 3600000) / 60000)
-      const s = Math.floor((diff % 60000) / 1000)
-      setCountdown(`${d}j ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`)
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [nextGP])
 
   useEffect(() => {
     if (authLoading) return
@@ -213,9 +219,7 @@ export default function Home() {
                 <span className="hidden sm:block text-xs text-subtle truncate">{nextGP.country}</span>
               )}
             </div>
-            {countdown && (
-              <span className="text-sm font-mono font-bold text-white shrink-0 tabular-nums">{countdown}</span>
-            )}
+            <Countdown date={nextGP.date} />
           </div>
         </div>
       )}
