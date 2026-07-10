@@ -119,11 +119,11 @@ export default function GrandsPrix() {
   }, [gps, sortMode])
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-white">Grands Prix</h1>
+        <h1 className="font-display text-4xl font-black italic uppercase tracking-tight text-white">Grands Prix</h1>
         <p className="text-sm text-muted mt-1">
           {loading ? 'Loading…' : `${gpsDisplay.length} races · ${saisonActive === 0 ? 'All time' : `${saisonActive} season`}`}
         </p>
@@ -177,7 +177,7 @@ export default function GrandsPrix() {
           <p>Loading…</p>
         </div>
       ) : gpsDisplay.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {gpsDisplay.map((gp) => (
             <GPCard key={gp.id} gp={gp} />
           ))}

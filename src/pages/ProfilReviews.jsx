@@ -75,7 +75,7 @@ export default function ProfilReviews() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <p className="text-muted text-sm">Loading…</p>
       </div>
     )
@@ -83,14 +83,14 @@ export default function ProfilReviews() {
 
   if (notFound) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <p className="text-muted text-sm">User not found.</p>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 space-y-8">
+    <div className="mx-auto max-w-6xl px-4 py-10 space-y-8">
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-subtle">
@@ -101,7 +101,7 @@ export default function ProfilReviews() {
 
       {/* Header + sort toggle */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-black text-white">
+        <h1 className="font-display text-4xl font-black italic uppercase tracking-tight text-white">
           Reviews <span className="text-subtle font-normal text-lg">({reviews.length})</span>
         </h1>
         <div className="flex items-center gap-1 rounded-lg border border-line bg-card p-1">

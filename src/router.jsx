@@ -18,7 +18,7 @@ const Search = lazy(() => import('./pages/Search'))
 
 function Lazy({ children }) {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>}>
+    <Suspense fallback={<div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>}>
       {children}
     </Suspense>
   )

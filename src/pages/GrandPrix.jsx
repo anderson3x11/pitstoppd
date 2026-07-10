@@ -336,20 +336,20 @@ export default function GrandPrix() {
     }
   }
 
-  if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
-  if (!race) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Grand Prix not found.</p></div>
+  if (loading) return <div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
+  if (!race) return <div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Grand Prix not found.</p></div>
 
   const isSprint = race.race_type === 'sprint'
   if (isFuture) {
     const futureDate = formatDateLong(race.date)
     return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="flex items-center gap-2 text-sm text-subtle mb-6">
           <Link to="/gps" className="hover:text-white transition-colors">GPs</Link>
           <span>/</span>
           <Link to={`/saisons/${saison}`} className="hover:text-white transition-colors">{saison}</Link>
         </div>
-        <h1 className="text-5xl font-black text-white leading-tight mb-3">{race.name}</h1>
+        <h1 className="font-display font-black italic text-6xl uppercase tracking-tight text-white leading-none mb-4 pr-3">{race.name}</h1>
         <p className="text-lg text-muted mb-2 capitalize">{futureDate}</p>
         <p className="text-lg text-muted mb-8">{race.circuit} · {race.country}</p>
         <div className="rounded-lg border border-line bg-card p-8 text-center space-y-2">
@@ -367,7 +367,7 @@ export default function GrandPrix() {
   const qualifs = [...raceDrivers].filter((rd) => rd.grid_position != null).sort((a, b) => a.grid_position - b.grid_position)
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
 
       {/* ── Review modal ── */}
       {showReviewModal && (
@@ -404,7 +404,7 @@ export default function GrandPrix() {
             <span>/</span>
             <Link to={`/saisons/${saison}`} className="hover:text-white transition-colors">{saison}</Link>
           </div>
-          <h1 className="text-5xl font-black text-white leading-tight">{race.name}</h1>
+          <h1 className="font-display font-black italic text-6xl uppercase tracking-tight text-white leading-none pr-3">{race.name}</h1>
           <p className="text-lg text-muted capitalize">{formattedDate}</p>
           <p className="text-lg text-muted">{race.circuit} · {race.country}</p>
 
@@ -490,7 +490,7 @@ export default function GrandPrix() {
 
           {/* Race Results */}
           <section>
-            <h2 className="text-lg font-bold text-white mb-5">{isSprint ? 'Sprint Results' : 'Race Results'}</h2>
+            <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">{isSprint ? 'Sprint Results' : 'Race Results'}</h2>
             <div className="rounded-lg border border-line overflow-hidden">
               {(showAllResults ? classement : classement.slice(0, 5)).map((r) => (
                 <div key={r.driver_id} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
@@ -513,7 +513,7 @@ export default function GrandPrix() {
 
           {/* Qualifying */}
           <section>
-            <h2 className="text-lg font-bold text-white mb-5">{isSprint ? 'Starting Grid' : 'Qualifying'}</h2>
+            <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">{isSprint ? 'Starting Grid' : 'Qualifying'}</h2>
             <div className="rounded-lg border border-line overflow-hidden">
               {(showAllQualifs ? qualifs : qualifs.slice(0, 5)).map((q) => (
                 <div key={q.driver_id} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line last:border-0 hover:bg-card-hover transition-colors">
@@ -543,7 +543,7 @@ export default function GrandPrix() {
             const displayed = showAllFollowing ? followingReviews : followingReviews.slice(0, 3)
             return (
               <div>
-                <h2 className="text-lg font-bold text-white mb-5">Following</h2>
+                <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Following</h2>
                 <div className="space-y-4">
                   {displayed.map((r) => (
                     <ReviewCard key={r.id} review={r} isLiked={userLikes.has(r.id)} onLike={handleLike} isOwn={user?.id === r.user_id} reviewUrl={`/gps/${saison}/${slug}/review/${r.username}`} />
@@ -565,7 +565,7 @@ export default function GrandPrix() {
           <div>
             <div className="flex items-center justify-between mb-5 gap-4">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-bold text-white">
+                <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white">
                   Reviews <span className="text-subtle font-normal text-sm">({reviewCount})</span>
                 </h2>
                 {user && (

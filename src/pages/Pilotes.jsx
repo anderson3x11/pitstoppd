@@ -182,12 +182,12 @@ export default function Pilotes() {
   )
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
 
       {/* Header + search */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1">
-          <h1 className="text-2xl font-black text-white">Drivers</h1>
+          <h1 className="font-display text-4xl font-black italic uppercase tracking-tight text-white">Drivers</h1>
           <p className="text-sm text-muted mt-1">
             {loading ? 'Loading…' : `${drivers.length} drivers · 2000–${latestSeason} seasons`}
           </p>
@@ -211,7 +211,7 @@ export default function Pilotes() {
               <h2 className="text-sm font-semibold text-muted uppercase tracking-widest mb-4">
                 {latestSeason} Grid
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                 {current.map((p) => (
                   <PiloteCard key={p.id} pilote={p} wins={winsMap[p.id] ?? 0} team={teamMap[p.id] ?? null} />
                 ))}
@@ -224,7 +224,7 @@ export default function Pilotes() {
               <h2 className="text-sm font-semibold text-muted uppercase tracking-widest mb-4">
                 Former Drivers
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                 {retired.map((p) => (
                   <PiloteCard key={p.id} pilote={p} wins={winsMap[p.id] ?? 0} team={null} />
                 ))}

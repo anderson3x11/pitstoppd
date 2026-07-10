@@ -190,7 +190,7 @@ export default function Profil() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <p className="text-muted text-sm">Loading…</p>
       </div>
     )
@@ -198,16 +198,13 @@ export default function Profil() {
 
   if (!profil) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <p className="text-muted text-sm">User not found.</p>
       </div>
     )
   }
 
   const teamColor = getTeamColor(profil.favorite_team)
-  const teamGradient = teamColor
-    ? `radial-gradient(ellipse at 15% 60%, rgba(${teamColor.rgb[0]}, ${teamColor.rgb[1]}, ${teamColor.rgb[2]}, 0.12) 0%, transparent 65%)`
-    : 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)'
 
   const showFavorites = profil.favorite_team || topPilotes.length > 0
 
@@ -215,15 +212,14 @@ export default function Profil() {
     <div>
 
       {/* ── Hero header ── */}
-      <section className="relative border-b border-line">
-        <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
-        <div className="absolute inset-0" style={{ background: teamGradient }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
+      <section className="relative border-b border-line bg-[#101010]">
+        {/* Bande plate couleur équipe favorite */}
+        <div className="h-1" style={{ background: teamColor?.hex ?? 'var(--color-f1-red)' }} />
 
         {/* Team logo watermark */}
         {profil.favorite_team && getTeamPhoto(profil.favorite_team) && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-            <div className="mx-auto max-w-4xl px-4 h-full flex items-center justify-end">
+            <div className="mx-auto max-w-6xl px-4 h-full flex items-center justify-end">
               <img
                 src={getTeamPhoto(profil.favorite_team)}
                 alt=""
@@ -233,9 +229,9 @@ export default function Profil() {
           </div>
         )}
 
-        <div className="relative mx-auto max-w-4xl px-4 py-16 flex items-center gap-8">
+        <div className="relative mx-auto max-w-6xl px-4 py-16 flex items-center gap-8">
           {/* Avatar */}
-          <div className="w-32 h-32 rounded-full bg-card-hover border-2 border-white/10 shadow-2xl flex items-center justify-center overflow-hidden shrink-0">
+          <div className="w-32 h-32 rounded-full bg-card-hover border-2 border-line flex items-center justify-center overflow-hidden shrink-0">
             {profil.avatar_url ? (
               <img src={profil.avatar_url} alt={profil.display_name} className="w-full h-full object-cover" />
             ) : (
@@ -247,7 +243,7 @@ export default function Profil() {
 
           {/* Infos */}
           <div className="flex-1 space-y-2 min-w-0">
-            <h1 className="text-4xl font-black text-white leading-tight">{profil.display_name}</h1>
+            <h1 className="font-display text-5xl font-bold text-white leading-tight">{profil.display_name}</h1>
             <p className="text-base text-subtle">@{profil.username}</p>
             {profil.bio && (
               <p className="text-base text-muted leading-relaxed max-w-lg pt-1">{profil.bio}</p>
@@ -261,8 +257,8 @@ export default function Profil() {
                 { label: 'Following', value: stats.abonnements },
               ].map((stat) => (
                 <div key={stat.label}>
-                  <p className="text-lg font-black text-white">{stat.value}</p>
-                  <p className="text-xs text-subtle">{stat.label}</p>
+                  <p className="font-display text-2xl font-bold text-white tabular-nums">{stat.value}</p>
+                  <p className="text-xs text-subtle uppercase tracking-wide">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -299,7 +295,7 @@ export default function Profil() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-4xl px-4 py-10 space-y-10">
+      <div className="mx-auto max-w-6xl px-4 py-10 space-y-10">
 
         {/* ── Favorites + Statistics ── */}
         {(showFavorites || ratingStats) && (
@@ -308,7 +304,7 @@ export default function Profil() {
             {/* Favorites */}
             {showFavorites && (
               <div className="flex flex-col">
-                <h2 className="text-lg font-bold text-white mb-5">Favorites</h2>
+                <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Favorites</h2>
                 {topPilotes.length > 0 && (
                   <div className="flex gap-3 mb-3">
                     {topPilotes.map((driver, i) => {
@@ -369,7 +365,7 @@ export default function Profil() {
             {/* Statistics */}
             {ratingStats && (
               <div className="w-52 shrink-0 flex flex-col">
-                <h2 className="text-lg font-bold text-white mb-5">Statistics</h2>
+                <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Statistics</h2>
                 <div className="rounded-lg border border-line bg-card p-4 space-y-4 flex-1">
                   <div className="text-center">
                     <p className="text-4xl font-black text-white leading-none">{ratingStats.avg}</p>
@@ -401,7 +397,7 @@ export default function Profil() {
 
         {/* ── Latest Reviews ── */}
         <section>
-          <h2 className="text-lg font-bold text-white mb-5">Latest Reviews</h2>
+          <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Latest Reviews</h2>
           {dernieresReviews.length > 0 ? (
             <>
               <div className="space-y-3">
@@ -424,7 +420,7 @@ export default function Profil() {
         {/* ── Popular Reviews ── */}
         {popularReviews.length > 0 && (
           <section>
-            <h2 className="text-lg font-bold text-white mb-5">Popular Reviews</h2>
+            <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Popular Reviews</h2>
             <div className="space-y-3">
               {popularReviews.map((review) => (
                 <ReviewCard key={review.id} review={review} />

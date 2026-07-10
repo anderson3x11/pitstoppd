@@ -91,15 +91,15 @@ export default function Review() {
     }
   }
 
-  if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
-  if (!race) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Grand Prix not found.</p></div>
-  if (!review) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Review not found.</p></div>
+  if (loading) return <div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
+  if (!race) return <div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Grand Prix not found.</p></div>
+  if (!review) return <div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Review not found.</p></div>
 
   const formattedDate = new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const reviewDate = new Date(review.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
 
       {/* ── Header ── */}
       <div className="flex gap-6 mb-10">
@@ -124,7 +124,7 @@ export default function Review() {
             <span>/</span>
             <Link to={`/gps/${saison}/${slug}`} className="hover:text-white transition-colors">{race.name}</Link>
           </div>
-          <h1 className="text-5xl font-black text-white leading-tight">{race.name}</h1>
+          <h1 className="font-display font-black italic text-6xl uppercase tracking-tight text-white leading-none pr-3">{race.name}</h1>
           <p className="text-lg text-muted capitalize">{formattedDate}</p>
           <p className="text-lg text-muted">{race.circuit} · {race.country}</p>
         </div>

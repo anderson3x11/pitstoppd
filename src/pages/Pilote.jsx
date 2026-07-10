@@ -75,7 +75,7 @@ export default function Pilote() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <p className="text-muted text-sm">Loading…</p>
       </div>
     )
@@ -83,7 +83,7 @@ export default function Pilote() {
 
   if (!pilote) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <p className="text-muted text-sm">Driver not found.</p>
       </div>
     )
@@ -111,24 +111,20 @@ export default function Pilote() {
     <div>
 
       {/* ── Hero header ── */}
-      <section className="relative border-b border-line">
-        <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)' }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
-
+      <section className="relative border-b border-line bg-[#101010]">
         {pilote.number != null && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-            <div className="mx-auto max-w-4xl px-4 h-full flex items-center justify-center">
-              <span className="text-[18rem] text-white/[0.04] blur-sm leading-none italic" style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 900 }}>
+            <div className="mx-auto max-w-6xl px-4 h-full flex items-center justify-end">
+              <span className="font-display font-black italic text-[20rem] text-white/[0.03] leading-none">
                 {pilote.number}
               </span>
             </div>
           </div>
         )}
 
-        <div className="relative mx-auto max-w-4xl px-4 py-16 flex items-end gap-8">
+        <div className="relative mx-auto max-w-6xl px-4 py-16 flex items-end gap-10">
           {/* Photo */}
-          <div className="hidden sm:block w-48 shrink-0 rounded-lg overflow-hidden border border-white/10 shadow-2xl aspect-[2/3] bg-card-hover">
+          <div className="hidden sm:block w-48 shrink-0 rounded overflow-hidden border border-line aspect-[2/3] bg-card-hover">
             {getDriverPhoto(pilote) ? (
               <img
                 src={getDriverPhoto(pilote)}
@@ -150,8 +146,8 @@ export default function Pilote() {
             <div className="flex items-center gap-2 text-sm text-subtle">
               <Link to="/pilotes" className="hover:text-white transition-colors cursor-pointer">Drivers</Link>
             </div>
-            <h1 className="text-5xl font-black text-white leading-tight">
-              {pilote.given_name} {pilote.family_name}
+            <h1 className="font-display font-black italic text-6xl md:text-7xl uppercase tracking-tight text-white leading-none pr-3">
+              {pilote.given_name} <span className="text-f1-red">{pilote.family_name}</span>
             </h1>
             <p className="text-base text-muted">
               {[pilote.nationality, age != null ? `${age} years old` : null].filter(Boolean).join(' · ')}
@@ -163,17 +159,17 @@ export default function Pilote() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-4xl px-4 py-10 space-y-10">
+      <div className="mx-auto max-w-6xl px-4 py-10 space-y-10">
 
         {/* ── Stats ── */}
         <section>
-          <h2 className="text-lg font-bold text-white mb-5">
-            Statistics <span className="text-subtle font-normal text-sm">(2000–present)</span>
+          <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">
+            Statistics <span className="text-subtle font-sans font-normal text-sm normal-case tracking-normal">(2000–present)</span>
           </h2>
           <div className={`grid gap-3 ${statsList.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             {statsList.map((stat) => (
               <div key={stat.label} className={`rounded-lg border px-3 py-5 text-center ${stat.highlight ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-line bg-card'}`}>
-                <p className={`text-4xl font-black ${stat.highlight ? 'text-yellow-400' : 'text-white'}`}>{stat.value}</p>
+                <p className={`font-display text-5xl font-bold tabular-nums ${stat.highlight ? 'text-yellow-400' : 'text-white'}`}>{stat.value}</p>
                 <p className="text-xs text-subtle mt-1 uppercase tracking-wide">{stat.label}</p>
               </div>
             ))}
@@ -182,7 +178,7 @@ export default function Pilote() {
 
         {/* ── Recent races ── */}
         <section>
-          <h2 className="text-lg font-bold text-white mb-5">Recent Races</h2>
+          <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Recent Races</h2>
           {derniersGPs.length > 0 ? (
             <div className="space-y-2">
               {derniersGPs.map((rd) => {

@@ -118,16 +118,16 @@ export default function Saisons() {
   }, [authLoading])
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-10">
-        <h1 className="text-3xl font-black text-white">Seasons</h1>
+        <h1 className="font-display text-4xl font-black italic uppercase tracking-tight text-white">Seasons</h1>
         <p className="text-sm text-muted mt-1">F1 from 2000 to present</p>
       </div>
 
       {loading ? (
         <p className="text-muted text-sm">Loading…</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {seasonsData.map((s) => {
             const featured = s.champion ?? s.leader
             const teamColor = getTeamColor(featured?.team)
@@ -153,7 +153,7 @@ export default function Saisons() {
                 <div className="relative px-5 py-4 space-y-2.5">
                   {/* Year */}
                   <div className="flex items-center gap-2">
-                    <span className="text-3xl font-black text-white group-hover:text-f1-red transition-colors">{s.year}</span>
+                    <span className="font-display text-4xl font-black text-white group-hover:text-f1-red transition-colors">{s.year}</span>
                     {!s.champion && (
                       <span className="text-[10px] font-medium text-subtle border border-line rounded px-1.5 py-px">In progress</span>
                     )}

@@ -5,7 +5,7 @@ import SearchUsers from "./SearchUsers";
 
 const navLinkClass = ({ isActive }) =>
   `text-sm font-medium transition-colors duration-150 ${
-    isActive ? "text-white" : "text-muted hover:text-white"
+    isActive ? "text-white underline decoration-f1-red decoration-2 underline-offset-8" : "text-muted hover:text-white"
   }`;
 
 export default function Navbar() {
@@ -22,7 +22,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-card/80 backdrop-blur-md">
-      <nav className="mx-auto flex h-14 max-w-4xl items-center px-4">
+      <nav className="mx-auto flex h-14 max-w-6xl items-center px-4">
         {/* Logo — left */}
         <div className="flex-1">
           <Link to="/" className="flex items-center gap-2 select-none w-fit">

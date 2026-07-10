@@ -164,14 +164,13 @@ export default function Home() {
     <div>
       {/* ── Hero: latest GP featured ── */}
       <section className="relative border-b border-line">
-        {/* CSS background */}
         <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)' }} />
         <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
 
-        <div className="relative mx-auto max-w-4xl px-4 py-16 flex items-end gap-8">
+        <div className="relative mx-auto max-w-6xl px-4 py-16 flex items-end gap-10">
           {/* Poster */}
-          <div className="hidden sm:block w-40 shrink-0 rounded-lg overflow-hidden border border-white/10 shadow-2xl aspect-[2/3] bg-card-hover">
+          <div className="hidden sm:block w-44 shrink-0 rounded overflow-hidden border border-line aspect-[2/3] bg-card-hover">
             {latestGP?.posterUrl ? (
               <img src={latestGP.posterUrl} alt={latestGP.name} className="h-full w-full object-cover" />
             ) : !loading && latestGP ? (
@@ -196,7 +195,7 @@ export default function Home() {
               <SkeletonHero />
             ) : latestGP ? (
               <>
-                <h1 className="font-display font-black italic text-[56px] leading-none uppercase tracking-tight text-white">{latestGP.name}</h1>
+                <h1 className="font-display font-black italic text-6xl md:text-7xl leading-[0.95] uppercase tracking-tight text-white pr-3">{latestGP.name}</h1>
                 <p className="text-sm text-muted">
                   {latestGP.season}
                   {latestGP.circuit && <> · {latestGP.circuit}</>}
@@ -220,7 +219,7 @@ export default function Home() {
 
       {nextGP && (
         <div className="border-b border-line bg-card-hover/40">
-          <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between gap-6">
+          <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-6">
             <div className="flex items-center gap-3 min-w-0">
               <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-f1-red border border-f1-red/40 bg-f1-red/10 rounded px-2 py-0.5">
                 {Math.ceil((new Date(nextGP.date) - new Date(TODAY)) / 86400000) <= 7 ? 'Race Week' : 'Next Race'}
@@ -237,11 +236,11 @@ export default function Home() {
         </div>
       )}
 
-      <div className="mx-auto max-w-4xl px-4 py-12 space-y-14">
+      <div className="mx-auto max-w-6xl px-4 py-12 space-y-14">
 
         {/* ── Following ── */}
         <section>
-          <h2 className="text-lg font-bold mb-4">Following</h2>
+          <h2 className="font-display text-2xl font-bold uppercase tracking-wide mb-4">Following</h2>
           {user ? (
             feedLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -278,7 +277,7 @@ export default function Home() {
         {/* ── Latest Grand Prix ── */}
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold">Latest Races</h2>
+            <h2 className="font-display text-2xl font-bold uppercase tracking-wide">Latest Races</h2>
             <Link to="/gps" className="text-sm text-muted hover:text-white transition-colors">View all →</Link>
           </div>
           {loading ? (

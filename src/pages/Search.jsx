@@ -31,7 +31,7 @@ export default function Search() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-bold text-white mb-1">Recherche</h1>
+      <h1 className="font-display text-4xl font-black italic uppercase tracking-tight text-white mb-1">Recherche</h1>
       {q && (
         <p className="text-sm text-muted mb-8">
           Résultats pour « <span className="text-white">{q}</span> »

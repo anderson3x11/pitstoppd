@@ -99,40 +99,36 @@ export default function Saison() {
     load()
   }, [season, authLoading])
 
-  if (loading) return <div className="mx-auto max-w-4xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
+  if (loading) return <div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
 
   const champion = driverStandings?.DriverStandings?.[0]
   const championTeam = champion?.Constructors?.[0]?.name
   const teamColor = getTeamColor(championTeam)
   const teamPhoto = getTeamPhoto(championTeam)
-  const teamGradient = teamColor
-    ? `radial-gradient(ellipse at 15% 60%, rgba(${teamColor.rgb[0]},${teamColor.rgb[1]},${teamColor.rgb[2]},0.12) 0%, transparent 65%)`
-    : 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)'
 
   return (
     <div>
       {/* ── Hero ── */}
-      <section className="relative border-b border-line">
-        <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
-        <div className="absolute inset-0" style={{ background: teamGradient }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
+      <section className="relative border-b border-line bg-[#101010]">
+        {/* Bande plate couleur équipe championne */}
+        <div className="h-1" style={{ background: teamColor?.hex ?? 'var(--color-f1-red)' }} />
 
         {teamPhoto && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-            <div className="mx-auto max-w-4xl px-4 h-full flex items-center justify-end">
+            <div className="mx-auto max-w-6xl px-4 h-full flex items-center justify-end">
               <img src={teamPhoto} alt="" className="h-48 w-auto object-contain opacity-[0.06]" />
             </div>
           </div>
         )}
 
-        <div className="relative mx-auto max-w-4xl px-4 py-16">
+        <div className="relative mx-auto max-w-6xl px-4 py-16">
           <div className="flex items-center gap-2 text-sm text-subtle mb-4">
             <Link to="/saisons" className="hover:text-white transition-colors">Seasons</Link>
             <span>/</span>
             <span>{annee}</span>
           </div>
 
-          <h1 className="text-5xl font-black text-white leading-tight mb-3">Season {annee}</h1>
+          <h1 className="font-display font-black italic text-6xl md:text-7xl uppercase tracking-tight text-white leading-none mb-4 pr-3">Season {annee}</h1>
 
           {champion && (
             <div className="flex items-center gap-3 mb-4">
@@ -150,25 +146,25 @@ export default function Saison() {
             {seasonStats && (
               <>
                 <div>
-                  <p className="text-2xl font-black text-white">{seasonStats.raceCount}</p>
-                  <p className="text-xs text-subtle">Races</p>
+                  <p className="font-display text-3xl font-bold text-white tabular-nums">{seasonStats.raceCount}</p>
+                  <p className="text-xs text-subtle uppercase tracking-wide">Races</p>
                 </div>
                 {seasonStats.avgRating != null && (
                   <div>
-                    <p className="text-2xl font-black text-star">{seasonStats.avgRating}</p>
-                    <p className="text-xs text-subtle">Avg rating</p>
+                    <p className="font-display text-3xl font-bold text-star tabular-nums">{seasonStats.avgRating}</p>
+                    <p className="text-xs text-subtle uppercase tracking-wide">Avg rating</p>
                   </div>
                 )}
                 {seasonStats.totalRatings > 0 && (
                   <div>
-                    <p className="text-2xl font-black text-white">{seasonStats.totalRatings}</p>
-                    <p className="text-xs text-subtle">Total ratings</p>
+                    <p className="font-display text-3xl font-bold text-white tabular-nums">{seasonStats.totalRatings}</p>
+                    <p className="text-xs text-subtle uppercase tracking-wide">Total ratings</p>
                   </div>
                 )}
                 {driverStandings && (
                   <div>
-                    <p className="text-2xl font-black text-white">{driverStandings.round}</p>
-                    <p className="text-xs text-subtle">Rounds</p>
+                    <p className="font-display text-3xl font-bold text-white tabular-nums">{driverStandings.round}</p>
+                    <p className="text-xs text-subtle uppercase tracking-wide">Rounds</p>
                   </div>
                 )}
               </>
@@ -177,7 +173,7 @@ export default function Saison() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-4xl px-4 py-10 space-y-10">
+      <div className="mx-auto max-w-6xl px-4 py-10 space-y-10">
 
         {/* ── Standings tabs ── */}
         <section>
@@ -304,7 +300,7 @@ export default function Saison() {
         {/* ── Top Rated Races ── */}
         {topRatedRaces.length > 0 && (
           <section>
-            <h2 className="text-lg font-bold text-white mb-5">Top Rated Races</h2>
+            <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Top Rated Races</h2>
             <div className="rounded-lg border border-line overflow-hidden">
               {topRatedRaces.map((race, i) => (
                 <Link
