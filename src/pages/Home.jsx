@@ -1,46 +1,30 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import GPCard from '../components/GPCard'
+import Poster from '../components/Poster'
 import StarRating from '../components/StarRating'
-import { SkeletonGPCard, SkeletonHero, SkeletonFeedCard } from '../components/Skeleton'
-import { supabase } from '../lib/supabase'
+import Icon from '../components/Icon'
+import { Skeleton, SkeletonGPCard, SkeletonHero, SkeletonFeedCard } from '../components/Skeleton'
+import { EmptyState } from '../components/PageState'
+import { api } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
-import { getCountryFlag } from '../lib/countryFlags'
-
+import { formatDateLong } from '../lib/dateUtils'
 import { TODAY } from '../lib/constants'
 import { getPageCache, setPageCache } from '../lib/pageCache'
 
 function FeedCard({ entry }) {
   return (
-    <Link to={`/gps/${entry.raceSeason}/${entry.raceSlug}`} className="group rounded-lg border border-line bg-card flex overflow-hidden hover:border-subtle transition-colors">
-      {/* Poster */}
-      <div className="w-20 shrink-0 bg-card-hover overflow-hidden">
-        {entry.posterUrl ? (
-          <img src={entry.posterUrl} alt={entry.raceName} loading="lazy" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-        ) : (
-          <div className="h-full w-full flex items-center justify-center">
-            <span className="text-2xl">{getCountryFlag(entry.raceCountry)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Infos */}
-      <div className="flex-1 px-3 py-3 flex flex-col justify-between min-w-0">
-        <div>
-          <p className="text-xs text-subtle truncate">{entry.raceName}</p>
-          <Link
-            to={`/${entry.username}`}
-            onClick={(e) => e.stopPropagation()}
-            className="text-sm font-semibold text-white hover:text-f1-red transition-colors truncate block"
-          >
-            {entry.displayName}
-          </Link>
-        </div>
-        {entry.rating != null && (
-          <div className="mt-2">
-            <StarRating value={entry.rating} size="sm" showValue />
-          </div>
-        )}
+    <Link
+      to={`/gps/${entry.raceSeason}/${entry.raceSlug}`}
+      className="group flex gap-3 rounded-lg border border-line bg-card p-2.5 hover:border-line-strong hover:bg-card-hover transition-colors"
+    >
+      <Poster race={{ name: entry.raceName, season: entry.raceSeason, poster_url: entry.posterUrl }} className="w-14 shrink-0" />
+      <div className="min-w-0 flex flex-col justify-center gap-1">
+        <p className="text-sm font-semibold text-white truncate group-hover:text-f1-red transition-colors">{entry.raceName}</p>
+        <p className="text-xs text-subtle truncate">
+          <span className="text-muted">{entry.displayName}</span> · {entry.raceSeason}
+        </p>
+        {entry.rating != null && <StarRating value={entry.rating} size="sm" />}
       </div>
     </Link>
   )
@@ -54,12 +38,12 @@ function Countdown({ date }) {
     const target = new Date(date + 'T12:00:00Z')
     const tick = () => {
       const diff = target - new Date()
-      if (diff <= 0) { setCountdown('Race day!'); return }
+      if (diff <= 0) { setCountdown('Race day'); return }
       const d = Math.floor(diff / 86400000)
       const h = Math.floor((diff % 86400000) / 3600000)
       const m = Math.floor((diff % 3600000) / 60000)
       const s = Math.floor((diff % 60000) / 1000)
-      setCountdown(`${d}j ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`)
+      setCountdown(`${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`)
     }
     tick()
     const id = setInterval(tick, 1000)
@@ -67,7 +51,55 @@ function Countdown({ date }) {
   }, [date])
 
   if (!countdown) return null
-  return <span className="text-sm font-mono font-bold text-white shrink-0 tabular-nums">{countdown}</span>
+  return <span className="font-mono text-sm font-medium text-white shrink-0 tabular-nums">{countdown}</span>
+}
+
+function Hero({ gp, loading }) {
+  const isSprint = gp?.race_type === 'sprint'
+  return (
+    <section className="relative isolate overflow-hidden border-b border-line">
+      {/* Backdrop : le poster du GP, flouté, comme les backdrops Letterboxd */}
+      {gp?.poster_url && (
+        <img src={gp.poster_url} alt="" aria-hidden="true" className="absolute inset-0 -z-10 h-full w-full object-cover scale-110 blur-3xl opacity-30 animate-[fade-in_600ms_ease]" />
+      )}
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(80%_120%_at_10%_50%,rgba(232,0,45,0.12),transparent_60%)]" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-page via-page/60 to-page/30" />
+
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16 flex items-end gap-6 sm:gap-10">
+        <div className="w-28 sm:w-44 shrink-0">
+          {gp ? <Poster race={gp} eager className="shadow-[0_24px_48px_-16px_rgba(0,0,0,0.9)]" /> : <Skeleton className="aspect-[2/3]" />}
+        </div>
+
+        <div className="min-w-0 pb-1">
+          {loading ? <SkeletonHero /> : gp ? (
+            <>
+              <h1 className="font-display font-bold uppercase text-4xl sm:text-6xl md:text-7xl leading-[0.92] tracking-tight text-white pr-2">
+                {gp.name}
+              </h1>
+              <p className="mt-3 text-sm sm:text-base text-muted">
+                {isSprint ? 'Sprint' : `Round ${gp.round}`} · {formatDateLong(gp.date)}
+                <span className="hidden sm:inline"> · {gp.circuit}</span>
+              </p>
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <Link to={`/gps/${gp.season}/${gp.slug}`} className="btn btn-primary">
+                  {isSprint ? 'Rate this sprint' : 'Rate this race'}
+                  <Icon name="arrowRight" />
+                </Link>
+                {gp.avgRating != null && (
+                  <span className="flex items-center gap-2 text-sm text-muted">
+                    <StarRating value={gp.avgRating} />
+                    <span className="tabular-nums"><span className="font-semibold text-white">{gp.avgRating.toFixed(1)}</span> from {gp.reviewCount} {gp.reviewCount === 1 ? 'rating' : 'ratings'}</span>
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="text-muted">No Grand Prix has been raced yet.</p>
+          )}
+        </div>
+      </div>
+    </section>
+  )
 }
 
 export default function Home() {
@@ -89,13 +121,10 @@ export default function Home() {
     }
 
     async function loadRaces() {
-      const [{ data: pastData }, { data: nextData }] = await Promise.all([
-        supabase.from('races').select('id, season, round, name, slug, circuit, country, date, poster_url, race_type').lt('date', TODAY).order('date', { ascending: false }).limit(4),
-        supabase.from('races').select('id, season, round, name, slug, circuit, country, date, race_type').gte('date', TODAY).order('date', { ascending: true }).limit(1).maybeSingle(),
-      ])
-      setGps(pastData ?? [])
-      if (nextData) setNextGP(nextData)
-      setPageCache('home:races', { gps: pastData ?? [], nextGP: nextData ?? null })
+      const { latest, next } = await api('/home')
+      setGps(latest)
+      setNextGP(next)
+      setPageCache('home:races', { gps: latest, nextGP: next })
       setLoading(false)
     }
 
@@ -111,186 +140,87 @@ export default function Home() {
     else setFeedLoading(true)
 
     async function loadFeed() {
-      const { data: followsData } = await supabase
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', user.id)
-
-      if (!followsData?.length) { setFeedLoading(false); return }
-
-      const followingIds = followsData.map((f) => f.following_id)
-
-      const { data: ratingsData } = await supabase
-        .from('ratings')
-        .select('id, score, created_at, user_id, race_id, races(name, season, slug, poster_url, country)')
-        .in('user_id', followingIds)
-        .order('created_at', { ascending: false })
-        .limit(6)
-
-      if (!ratingsData?.length) { setFeedLoading(false); return }
-
-      const userIds = [...new Set(ratingsData.map((r) => r.user_id))]
-      const { data: profilesData } = await supabase
-        .from('profiles').select('id, username, display_name').in('id', userIds)
-
-      const profileMap = {}
-      for (const p of profilesData ?? []) profileMap[p.id] = p
-
-      const feed = ratingsData.map((r) => ({
-        id: r.id,
-        created_at: r.created_at,
-        username: profileMap[r.user_id]?.username,
-        displayName: profileMap[r.user_id]?.display_name,
-        raceName: r.races?.name,
-        raceSeason: r.races?.season,
-        raceSlug: r.races?.slug,
-        posterUrl: r.races?.poster_url ?? null,
-        raceCountry: r.races?.country ?? null,
-        rating: r.score,
-      }))
+      const feed = await api('/feed')
       setFeedReviews(feed)
       setPageCache(`home:feed:${user.id}`, feed)
-
       setFeedLoading(false)
     }
 
     loadFeed().catch(() => setFeedLoading(false))
   }, [user?.id, authLoading])
 
-  const gpCards = gps.map((gp) => ({ ...gp, posterUrl: gp.poster_url, raceType: gp.race_type, avgRating: null, reviewCount: null }))
-  const latestGP = gpCards[0] ?? null
+  const latestGP = gps[0] ?? null
+  const gpCards = gps.map((gp) => ({ ...gp, posterUrl: gp.poster_url, raceType: gp.race_type }))
+  const daysToNext = nextGP ? Math.ceil((new Date(nextGP.date) - new Date(TODAY)) / 86400000) : null
 
   return (
     <div>
-      {/* ── Hero: latest GP featured ── */}
-      <section className="relative border-b border-line">
-        <div className="absolute inset-0 bg-gradient-to-br from-card-hover via-card to-page" />
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 15% 60%, rgba(232, 0, 45, 0.07) 0%, transparent 65%)' }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-page via-transparent to-transparent" />
-
-        <div className="relative mx-auto max-w-6xl px-4 py-16 flex items-end gap-10">
-          {/* Poster */}
-          <div className="hidden sm:block w-44 shrink-0 rounded overflow-hidden border border-line aspect-[2/3] bg-card-hover">
-            {latestGP?.posterUrl ? (
-              <img src={latestGP.posterUrl} alt={latestGP.name} className="h-full w-full object-cover" />
-            ) : !loading && latestGP ? (
-              <div className="h-full w-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-card-hover to-card">
-                <span className="text-5xl">{getCountryFlag(latestGP?.country)}</span>
-                <span className="text-center text-[11px] font-medium text-subtle uppercase tracking-wide leading-tight px-2">
-                  {latestGP?.name}
-                </span>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Infos */}
-          <div className="space-y-3 pb-1">
-            <div className="flex items-center gap-2">
-              <span className="block w-6 h-px bg-f1-red" />
-              <p className="text-xs font-semibold uppercase tracking-widest text-f1-red">
-                {latestGP?.race_type === 'sprint' ? 'Latest Sprint' : 'Latest Grand Prix'}
-              </p>
-            </div>
-            {loading ? (
-              <SkeletonHero />
-            ) : latestGP ? (
-              <>
-                <h1 className="font-display font-black italic text-6xl md:text-7xl leading-[0.95] uppercase tracking-tight text-white pr-3">{latestGP.name}</h1>
-                <p className="text-sm text-muted">
-                  {latestGP.season}
-                  {latestGP.circuit && <> · {latestGP.circuit}</>}
-                  {latestGP.country && <> · {latestGP.country}</>}
-                </p>
-                <div className="pt-1">
-                  <Link
-                    to={`/gps/${latestGP.season}/${latestGP.slug}`}
-                    className="inline-flex items-center gap-1.5 rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
-                  >
-                    {latestGP.race_type === 'sprint' ? 'View Sprint →' : 'View Grand Prix →'}
-                  </Link>
-                </div>
-              </>
-            ) : (
-              <p className="text-muted text-sm">No Grand Prix available.</p>
-            )}
-          </div>
-        </div>
-      </section>
+      <Hero gp={latestGP} loading={loading} />
 
       {nextGP && (
-        <div className="border-b border-line bg-card-hover/40">
-          <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-6">
+        <div className="border-b border-line bg-card/60">
+          <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-f1-red border border-f1-red/40 bg-f1-red/10 rounded px-2 py-0.5">
-                {Math.ceil((new Date(nextGP.date) - new Date(TODAY)) / 86400000) <= 7 ? 'Race Week' : 'Next Race'}
+              <span className={`shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${daysToNext <= 7 ? 'bg-f1-red text-white' : 'border border-line-strong text-muted'}`}>
+                {daysToNext <= 7 ? 'Race week' : 'Next race'}
               </span>
-              <Link to={`/gps/${nextGP.season}/${nextGP.slug}`} className="text-sm font-semibold text-white hover:text-f1-red transition-colors truncate">
-                {nextGP.name}
-              </Link>
-              {nextGP.circuit && (
-                <span className="hidden sm:block text-xs text-subtle truncate">{nextGP.country}</span>
-              )}
+              <span className="text-sm font-semibold text-white truncate">{nextGP.name}</span>
+              <span className="hidden sm:block text-sm text-subtle truncate">{nextGP.country}</span>
             </div>
             <Countdown date={nextGP.date} />
           </div>
         </div>
       )}
 
-      <div className="mx-auto max-w-6xl px-4 py-12 space-y-14">
+      <div className="mx-auto max-w-6xl px-4 py-12 space-y-16">
+        <section aria-labelledby="latest-title">
+          <div className="flex items-end justify-between gap-4 mb-5 border-b border-line pb-3">
+            <h2 id="latest-title" className="section-title">Latest races</h2>
+            <Link to="/gps" className="inline-flex items-center gap-1 text-sm text-muted hover:text-white transition-colors">
+              All Grands Prix <Icon name="arrowRight" className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-4">
+            {loading
+              ? [0, 1, 2, 3, 4, 5].map((i) => <SkeletonGPCard key={i} />)
+              : gpCards.map((gp) => <GPCard key={gp.id} gp={gp} />)}
+          </div>
+        </section>
 
-        {/* ── Following ── */}
-        <section>
-          <h2 className="font-display text-2xl font-bold uppercase tracking-wide mb-4">Following</h2>
+        <section aria-labelledby="friends-title">
+          <div className="flex items-end justify-between gap-4 mb-5 border-b border-line pb-3">
+            <h2 id="friends-title" className="section-title">From friends</h2>
+          </div>
           {user ? (
             feedLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[0, 1, 2].map((i) => <SkeletonFeedCard key={i} />)}
               </div>
             ) : feedReviews.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {feedReviews.map((r) => <FeedCard key={r.id} entry={r} />)}
               </div>
             ) : (
-              <div className="rounded-lg border border-line bg-card p-6 text-center space-y-2">
-                <p className="text-sm text-muted">No recent reviews.</p>
-                <p className="text-xs text-subtle">Follow users to see their reviews here.</p>
-              </div>
+              <EmptyState title="Your feed is quiet" action="Browse Grands Prix" to="/gps">
+                Ratings from people you follow show up here. Open a race, read its reviews, and follow the fans you agree with.
+              </EmptyState>
             )
           ) : (
-            <div className="rounded-lg border border-line bg-card p-8 text-center space-y-3">
-              <p className="text-white font-semibold">Join the community</p>
-              <p className="text-sm text-muted max-w-sm mx-auto">
-                Sign in to see ratings and reviews from users you follow.
+            <div className="relative overflow-hidden rounded-lg border border-line bg-card px-6 py-10 sm:px-10">
+              <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-f1-red/10 blur-3xl" aria-hidden="true" />
+              <h3 className="font-display text-3xl sm:text-4xl font-bold uppercase leading-none text-white max-w-lg">
+                Every race you've watched, in one log.
+              </h3>
+              <p className="mt-3 text-muted max-w-md">
+                Rate Grands Prix from 0.5 to 5 stars, write reviews, and follow other fans to see what they thought.
               </p>
-              <div className="flex items-center justify-center gap-3 pt-2">
-                <Link to="/register" className="rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors">
-                  Create account
-                </Link>
-                <Link to="/login" className="text-sm font-medium text-muted hover:text-white transition-colors">
-                  Sign in
-                </Link>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Link to="/register" className="btn btn-primary">Create an account</Link>
+                <Link to="/login" className="btn btn-secondary">Sign in</Link>
               </div>
             </div>
           )}
         </section>
-
-        {/* ── Latest Grand Prix ── */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-2xl font-bold uppercase tracking-wide">Latest Races</h2>
-            <Link to="/gps" className="text-sm text-muted hover:text-white transition-colors">View all →</Link>
-          </div>
-          {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[0, 1, 2, 3].map((i) => <SkeletonGPCard key={i} />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {gpCards.map((gp) => <GPCard key={gp.id} gp={gp} />)}
-            </div>
-          )}
-        </section>
-
       </div>
     </div>
   )

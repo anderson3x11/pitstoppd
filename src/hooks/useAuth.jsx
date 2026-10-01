@@ -1,67 +1,29 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
 
 const AuthContext = createContext(null)
 
+// `user` et `profile` désignent le même objet (profil de l'utilisateur connecté) :
+// les pages utilisent `user` pour savoir si on est connecté, `profile` pour l'afficher.
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const loadProfile = useCallback(async (userId) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, favorite_team, top_pilots')
-      .eq('id', userId)
-      .single()
-    setProfile(data ?? null)
+  const refreshProfile = useCallback(async () => {
+    setProfile(await api('/me').catch(() => null))
   }, [])
 
   useEffect(() => {
-    let mounted = true
-
-    // Safety timeout: if auth init takes too long, unblock the app
-    const timeout = setTimeout(() => {
-      if (mounted) setLoading(false)
-    }, 4000)
-
-    // Load initial session — le profil charge en arrière-plan, il ne doit pas
-    // bloquer le rendu des pages (elles n'ont besoin que de `user`)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return
-      setUser(session?.user ?? null)
-      setLoading(false)
-      if (session?.user) loadProfile(session.user.id)
-    }).catch(() => {
-      if (mounted) setLoading(false)
-    })
-
-    // Listen for subsequent auth changes (sign in, sign out, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION') return
-      if (!mounted) return
-      setUser(session?.user ?? null)
-      if (session?.user) await loadProfile(session.user.id)
-      else setProfile(null)
-    })
-
-    return () => {
-      mounted = false
-      clearTimeout(timeout)
-      subscription.unsubscribe()
-    }
-  }, [loadProfile])
+    refreshProfile().finally(() => setLoading(false))
+  }, [refreshProfile])
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    await api('/auth/logout', { method: 'POST' })
+    setProfile(null)
   }
 
-  const refreshProfile = useCallback(async () => {
-    if (user) await loadProfile(user.id)
-  }, [user, loadProfile])
-
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user: profile, profile, loading, signOut, refreshProfile, setProfile }}>
       {children}
     </AuthContext.Provider>
   )

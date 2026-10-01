@@ -1,25 +1,14 @@
-/* eslint-env node */
 /**
- * Refresh script — updates the current F1 season data and driver photos.
+ * Met à jour la saison en cours depuis Jolpica (calendrier, sprints, résultats, pilotes)
+ * puis cherche sur Wikipedia les photos des pilotes qui n'en ont pas.
  *
- * Updates races, drivers, and race_drivers for the current year,
- * then fetches Wikipedia photos for any driver missing a photo_url.
+ *   node --disable-warning=ExperimentalWarning scripts/refresh.js
  *
- * Run: node --env-file=.env.local scripts/refresh.js
- * Requires VITE_SUPABASE_URL and SUPABASE_SECRET_KEY in .env.local
+ * En prod : tâche planifiée Coolify, une fois par jour.
  */
 
-import { createClient } from '@supabase/supabase-js'
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL
-const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY
-
-if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
-  console.error('Missing VITE_SUPABASE_URL or SUPABASE_SECRET_KEY in .env.local')
-  process.exit(1)
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY)
+import { randomUUID } from 'node:crypto'
+import { all, get, run, tx } from '../server/db.js'
 
 const BASE = 'https://api.jolpi.ca/ergast/f1'
 const CURRENT_SEASON = new Date().getFullYear()
@@ -62,14 +51,6 @@ function parsePosition(positionText, position) {
   return /^\d+$/.test(positionText) ? parseInt(position) : null
 }
 
-async function upsertInChunks(table, rows, onConflict, chunkSize = 100) {
-  for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize)
-    const { error } = await supabase.from(table).upsert(chunk, { onConflict })
-    if (error) throw error
-  }
-}
-
 // ─── Wikipedia driver photos ───────────────────────────────────────────
 
 const WIKI_OVERRIDES = {
@@ -97,205 +78,94 @@ async function fetchWikiPhoto(title) {
   return data.originalimage?.source ?? data.thumbnail?.source ?? null
 }
 
+// ─── Écriture en base ──────────────────────────────────────────────────
+
+// Le slug ne change jamais une fois créé (il est dans les URLs). Si un autre GP de la saison
+// l'utilise déjà (même circuit deux fois), on suffixe par le round.
+function upsertRace(r) {
+  const existing = get('SELECT id FROM races WHERE season = ? AND round = ? AND race_type = ?', r.season, r.round, r.race_type)
+  if (existing) {
+    run('UPDATE races SET name = ?, circuit = ?, country = ?, date = ? WHERE id = ?', r.name, r.circuit, r.country, r.date, existing.id)
+    return existing.id
+  }
+  const slug = get('SELECT 1 FROM races WHERE season = ? AND slug = ?', r.season, r.slug) ? `${r.slug}-${r.round}` : r.slug
+  const id = randomUUID()
+  run('INSERT INTO races (id, season, round, race_type, name, slug, circuit, country, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    id, r.season, r.round, r.race_type, r.name, slug, r.circuit, r.country, r.date)
+  return id
+}
+
+function saveResults(raceId, results) {
+  for (const result of results) {
+    const d = result.Driver
+    run(`INSERT INTO drivers (id, given_name, family_name, nationality, date_of_birth, number) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET given_name = excluded.given_name, family_name = excluded.family_name,
+           nationality = excluded.nationality, date_of_birth = excluded.date_of_birth, number = excluded.number`,
+    d.driverId, d.givenName, d.familyName, d.nationality, d.dateOfBirth ?? null, parseInt(d.permanentNumber) || null)
+    run(`INSERT INTO race_drivers VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (race_id, driver_id) DO UPDATE SET position = excluded.position, grid_position = excluded.grid_position, status = excluded.status`,
+    raceId, d.driverId, parsePosition(result.positionText, result.position), parseInt(result.grid) || null, result.status)
+  }
+}
+
 // ─── Main ──────────────────────────────────────────────────────────────
 
 async function main() {
   console.log(`\n=== Refresh — Season ${CURRENT_SEASON} ===\n`)
 
-  // 1. Fetch current season schedule
-  console.log('Fetching schedule…')
-  const scheduleData = await fetchJson(`${BASE}/${CURRENT_SEASON}.json`)
-  const races = scheduleData.MRData.RaceTable.Races
+  const races = (await fetchJson(`${BASE}/${CURRENT_SEASON}.json`)).MRData.RaceTable.Races
+  if (races.length === 0) return console.log('No races found for this season.')
 
-  if (races.length === 0) {
-    console.log('No races found for this season.')
-    return
-  }
-
-  const raceRows = races.map((race) => ({
+  const base = (race) => ({
     season: parseInt(race.season),
     round: parseInt(race.round),
-    race_type: 'race',
-    name: race.raceName,
-    slug: toSlug(race.Circuit.circuitId),
     circuit: race.Circuit.circuitName,
     country: race.Circuit.Location.country,
-    date: race.date,
-  }))
-
-  // 2. Upsert races
-  // onConflict doit matcher la contrainte UNIQUE(season, round, race_type)
-  const { data: upsertedRaces, error: racesError } = await supabase
-    .from('races')
-    .upsert(raceRows, { onConflict: 'season,round,race_type' })
-    .select('id, round')
-
-  if (racesError) throw racesError
-  console.log(`  ${upsertedRaces.length} races upserted`)
-
-  const raceMap = Object.fromEntries(upsertedRaces.map((r) => [r.round, r.id]))
-
-  // 2b. Upsert sprints — le calendrier expose le champ Sprint pour les rounds concernés,
-  // y compris les sprints à venir (contrairement à /sprint.json qui ne liste que les courus)
-  const sprintRows = races
-    .filter((race) => race.Sprint)
-    .map((race) => ({
-      season: parseInt(race.season),
-      round: parseInt(race.round),
-      race_type: 'sprint',
-      name: race.raceName.replace('Grand Prix', 'Grand Prix Sprint'),
-      slug: toSlug(race.Circuit.circuitId) + '-sprint',
-      circuit: race.Circuit.circuitName,
-      country: race.Circuit.Location.country,
-      date: race.Sprint.date,
-    }))
-
+  })
+  const raceMap = {}
   const sprintMap = {}
-  if (sprintRows.length > 0) {
-    const { data: upsertedSprints, error: sprintsError } = await supabase
-      .from('races')
-      .upsert(sprintRows, { onConflict: 'season,round,race_type' })
-      .select('id, round')
-
-    if (sprintsError) throw sprintsError
-    console.log(`  ${upsertedSprints.length} sprints upserted`)
-    for (const r of upsertedSprints) sprintMap[r.round] = r.id
-  } else {
-    console.log('  No sprints in this season\'s calendar')
-  }
-
-  await sleep(500)
-
-  // 3. Fetch current season results (paginated)
-  console.log('Fetching results…')
-  const raceResults = await fetchAllPages(`${CURRENT_SEASON}/results.json`)
-
-  const driversMap = {}
-  const raceDriverRows = []
-
-  for (const race of raceResults) {
-    const raceId = raceMap[parseInt(race.round)]
-    if (!raceId) continue
-
-    for (const result of race.Results) {
-      const d = result.Driver
-
-      driversMap[d.driverId] = {
-        id: d.driverId,
-        given_name: d.givenName,
-        family_name: d.familyName,
-        nationality: d.nationality,
-        date_of_birth: d.dateOfBirth ?? null,
-        number: parseInt(d.permanentNumber) || null,
-      }
-
-      raceDriverRows.push({
-        race_id: raceId,
-        driver_id: d.driverId,
-        position: parsePosition(result.positionText, result.position),
-        grid_position: parseInt(result.grid) || null,
-        status: result.status,
-      })
-    }
-  }
-
-  // 3b. Fetch sprint results (paginated)
-  if (Object.keys(sprintMap).length > 0) {
-    await sleep(500)
-    console.log('Fetching sprint results…')
-    const sprintResults = await fetchAllPages(`${CURRENT_SEASON}/sprint.json`)
-
-    for (const race of sprintResults) {
-      const sprintId = sprintMap[parseInt(race.round)]
-      if (!sprintId) continue
-
-      for (const result of race.SprintResults ?? []) {
-        const d = result.Driver
-
-        driversMap[d.driverId] = {
-          id: d.driverId,
-          given_name: d.givenName,
-          family_name: d.familyName,
-          nationality: d.nationality,
-          date_of_birth: d.dateOfBirth ?? null,
-          number: parseInt(d.permanentNumber) || null,
-        }
-
-        raceDriverRows.push({
-          race_id: sprintId,
-          driver_id: d.driverId,
-          position: parsePosition(result.positionText, result.position),
-          grid_position: parseInt(result.grid) || null,
-          status: result.status,
+  tx(() => {
+    for (const race of races) {
+      raceMap[race.round] = upsertRace({ ...base(race), race_type: 'race', name: race.raceName, slug: toSlug(race.Circuit.circuitId), date: race.date })
+      // Le calendrier expose aussi les sprints à venir (contrairement à /sprint.json)
+      if (race.Sprint) {
+        sprintMap[race.round] = upsertRace({
+          ...base(race), race_type: 'sprint',
+          name: race.raceName.replace('Grand Prix', 'Grand Prix Sprint'),
+          slug: toSlug(race.Circuit.circuitId) + '-sprint',
+          date: race.Sprint.date,
         })
       }
     }
-  }
+  })
+  console.log(`  ${races.length} races, ${Object.keys(sprintMap).length} sprints`)
 
-  // 4. Upsert drivers
-  const driverRows = Object.values(driversMap)
-  if (driverRows.length > 0) {
-    await upsertInChunks('drivers', driverRows, 'id')
-    console.log(`  ${driverRows.length} drivers upserted`)
-  } else {
-    console.log('  No results yet for this season')
-  }
+  await sleep(500)
+  const raceResults = await fetchAllPages(`${CURRENT_SEASON}/results.json`)
+  const sprintResults = Object.keys(sprintMap).length ? (await sleep(500), await fetchAllPages(`${CURRENT_SEASON}/sprint.json`)) : []
+  tx(() => {
+    for (const race of raceResults) if (raceMap[race.round]) saveResults(raceMap[race.round], race.Results)
+    for (const race of sprintResults) if (sprintMap[race.round]) saveResults(sprintMap[race.round], race.SprintResults ?? [])
+  })
+  console.log(`  résultats : ${raceResults.length} courses, ${sprintResults.length} sprints`)
 
-  // 5. Upsert race_drivers
-  if (raceDriverRows.length > 0) {
-    await upsertInChunks('race_drivers', raceDriverRows, 'race_id,driver_id')
-    console.log(`  ${raceDriverRows.length} race_drivers upserted`)
-  }
-
-  // 6. Fetch Wikipedia photos for drivers with no photo_url
   console.log('\nUpdating driver photos from Wikipedia…')
-
-  const { data: driversNoPhoto, error: photoQueryError } = await supabase
-    .from('drivers')
-    .select('id, given_name, family_name')
-    .is('photo_url', null)
-    .order('family_name')
-
-  if (photoQueryError) throw photoQueryError
-
-  if (driversNoPhoto.length === 0) {
-    console.log('  All drivers already have photos')
-  } else {
-    console.log(`  ${driversNoPhoto.length} drivers without photo_url`)
-
-    let updated = 0
-    const failed = []
-
-    for (const driver of driversNoPhoto) {
-      const title = wikiTitle(driver)
-      const photo = await fetchWikiPhoto(title)
-
-      if (photo) {
-        const { error: updateError } = await supabase
-          .from('drivers')
-          .update({ photo_url: photo })
-          .eq('id', driver.id)
-
-        if (updateError) {
-          console.log(`  x ${driver.given_name} ${driver.family_name}: ${updateError.message}`)
-        } else {
-          updated++
-          console.log(`  + ${driver.given_name} ${driver.family_name}`)
-        }
-      } else {
-        failed.push(`${driver.given_name} ${driver.family_name} (tried: ${title})`)
-      }
-
-      await sleep(200) // rate limit Wikipedia
+  const failed = []
+  for (const driver of all('SELECT id, given_name, family_name FROM drivers WHERE photo_url IS NULL ORDER BY family_name')) {
+    const title = wikiTitle(driver)
+    const photo = await fetchWikiPhoto(title)
+    if (photo) {
+      run('UPDATE drivers SET photo_url = ? WHERE id = ?', photo, driver.id)
+      console.log(`  + ${driver.given_name} ${driver.family_name}`)
+    } else {
+      failed.push(`${driver.given_name} ${driver.family_name} (tried: ${title})`)
     }
-
-    console.log(`  ${updated} photo(s) updated in Supabase`)
-
-    if (failed.length > 0) {
-      console.log(`\n  ${failed.length} driver(s) without Wikipedia photo:`)
-      failed.forEach((name) => console.log(`    - ${name}`))
-      console.log('  Add correct titles to WIKI_OVERRIDES and re-run.')
-    }
+    await sleep(200) // rate limit Wikipedia
+  }
+  if (failed.length) {
+    console.log(`\n  ${failed.length} driver(s) without Wikipedia photo:`)
+    failed.forEach((name) => console.log(`    - ${name}`))
+    console.log('  Add correct titles to WIKI_OVERRIDES and re-run.')
   }
 
   console.log('\nRefresh complete.')

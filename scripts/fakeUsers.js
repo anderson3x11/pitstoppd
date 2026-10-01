@@ -1,30 +1,17 @@
-/* eslint-env node */
 /**
- * Fake users script — seed/clean fake test data.
+ * Faux utilisateurs pour donner de la vie au site.
  *
- * Run:
- *   node --env-file=.env.local scripts/fakeUsers.js seed
- *   node --env-file=.env.local scripts/fakeUsers.js clean
+ *   node --disable-warning=ExperimentalWarning scripts/fakeUsers.js seed
+ *   node --disable-warning=ExperimentalWarning scripts/fakeUsers.js clean
  *
- * Requires VITE_SUPABASE_URL and SUPABASE_SECRET_KEY in .env.local
+ * En prod (Coolify) : même commande dans le terminal du conteneur.
+ * Les comptes ont un mot de passe aléatoire jeté : ils ne servent pas à se connecter.
  */
 
-import { createClient } from '@supabase/supabase-js'
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL
-const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY
-
-if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
-  console.error('Missing VITE_SUPABASE_URL or SUPABASE_SECRET_KEY in .env.local')
-  process.exit(1)
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-})
+import { randomUUID, randomBytes } from 'node:crypto'
+import { all, run, tx, hashPassword } from '../server/db.js'
 
 const FAKE_EMAIL_DOMAIN = '@pitstoppd.test'
-const FAKE_PASSWORD = 'Pitstoppd2026!'
 
 // ─── Fake user definitions ─────────────────────────────────────────────
 
@@ -278,230 +265,59 @@ function randomScore() {
 
 // ─── Seed ──────────────────────────────────────────────────────────────
 
-async function seed() {
-  console.log('\n=== Seeding fake users ===\n')
+const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5)
+// Date aléatoire dans les 60 derniers jours, pour un feed qui a l'air vivant
+const ago = () => `-${Math.floor(Math.random() * 60 * 24)} hours`
 
-  // 1. Fetch past races only
-  const today = new Date().toISOString().split('T')[0]
-  const { data: races, error: racesErr } = await supabase
-    .from('races')
-    .select('id, name, season')
-    .lt('date', today)
-    .order('date', { ascending: false })
-    .limit(30)
-  if (racesErr) throw racesErr
-  console.log(`Fetched ${races.length} races to review`)
+function seed() {
+  const races = all("SELECT id FROM races WHERE date < date('now') ORDER BY date DESC LIMIT 30")
+  const driverIds = new Set(all('SELECT id FROM drivers').map((d) => d.id))
+  const password = hashPassword(randomBytes(16).toString('hex'))
 
-  // 2. Fetch drivers to resolve top pilot names → IDs
-  const { data: drivers, error: driversErr } = await supabase
-    .from('drivers')
-    .select('id, family_name')
-  if (driversErr) throw driversErr
-  const driverMap = Object.fromEntries(drivers.map((d) => [d.id, d]))
-
-  // 3. Create auth users + profiles
-  const createdUsers = []
-
-  for (const u of FAKE_USERS) {
-    const email = `${u.username}${FAKE_EMAIL_DOMAIN}`
-    console.log(`Creating user ${u.username}…`)
-
-    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-      email,
-      password: FAKE_PASSWORD,
-      email_confirm: true,
-      user_metadata: { username: u.username, display_name: u.display_name },
+  tx(() => {
+    const users = FAKE_USERS.map((u) => {
+      const id = randomUUID()
+      const topPilots = u.topPilotNames.filter((name) => driverIds.has(name)).slice(0, 3)
+      run(`INSERT INTO users (id, email, password_hash, username, display_name, bio, favorite_team, top_pilots, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '-90 days'))`,
+      id, u.username + FAKE_EMAIL_DOMAIN, password, u.username, u.display_name, u.bio, u.favorite_team,
+      topPilots.length ? JSON.stringify(topPilots) : null)
+      return id
     })
-    if (authErr) {
-      console.error(`  x Auth error: ${authErr.message}`)
-      continue
-    }
 
-    const userId = authData.user.id
-
-    // Resolve top pilot IDs
-    const topPilots = u.topPilotNames
-      .map((name) => driverMap[name]?.id ?? null)
-      .filter(Boolean)
-      .slice(0, 3)
-
-    // Upsert profile (may already exist from trigger)
-    const { error: profileErr } = await supabase.from('profiles').upsert({
-      id: userId,
-      username: u.username,
-      display_name: u.display_name,
-      bio: u.bio,
-      favorite_team: u.favorite_team,
-      top_pilots: topPilots.length > 0 ? topPilots : null,
-    }, { onConflict: 'id' })
-
-    if (profileErr) {
-      console.error(`  x Profile error: ${profileErr.message}`)
-      continue
-    }
-
-    createdUsers.push({ ...u, id: userId, email })
-    console.log(`  ✓ ${u.username} (${userId.slice(0, 8)}…)`)
-  }
-
-  console.log(`\n${createdUsers.length} users created`)
-
-  // 4. Create reviews + ratings
-  console.log('\nCreating reviews and ratings…')
-  const allReviews = []
-
-  for (const u of createdUsers) {
-    // Each user reviews 4–7 random races
-    const count = 4 + Math.floor(Math.random() * 4)
-    const shuffled = [...races].sort(() => Math.random() - 0.5).slice(0, count)
-
-    for (const race of shuffled) {
-      const isSpoiler = Math.random() < 0.2
-      const content = isSpoiler ? randomFrom(SPOILER_REVIEWS) : randomFrom(REVIEW_TEMPLATES)
-
-      const { data: review, error: reviewErr } = await supabase
-        .from('reviews')
-        .insert({ user_id: u.id, race_id: race.id, content, spoiler: isSpoiler })
-        .select('id')
-        .single()
-
-      if (reviewErr) {
-        console.error(`  x Review error (${u.username}/${race.name}): ${reviewErr.message}`)
-        continue
-      }
-
-      allReviews.push({ id: review.id, user_id: u.id, race_id: race.id })
-
-      // Rating for that race
-      const score = randomScore()
-      const { error: ratingErr } = await supabase
-        .from('ratings')
-        .insert({ user_id: u.id, race_id: race.id, score })
-
-      if (ratingErr) {
-        console.error(`  x Rating error: ${ratingErr.message}`)
+    // Chaque user note et critique 4 à 7 GPs
+    const reviews = []
+    for (const userId of users) {
+      for (const race of shuffle(races).slice(0, 4 + Math.floor(Math.random() * 4))) {
+        const spoiler = Math.random() < 0.2
+        const id = randomUUID()
+        const when = ago()
+        run("INSERT INTO reviews (id, user_id, race_id, content, spoiler, created_at) VALUES (?, ?, ?, ?, ?, datetime('now', ?))",
+          id, userId, race.id, randomFrom(spoiler ? SPOILER_REVIEWS : REVIEW_TEMPLATES), spoiler ? 1 : 0, when)
+        run("INSERT INTO ratings (user_id, race_id, score, created_at) VALUES (?, ?, ?, datetime('now', ?))", userId, race.id, randomScore(), when)
+        reviews.push({ id, userId })
       }
     }
-    console.log(`  ✓ ${u.username} — ${count} reviews`)
-  }
 
-  // 5. Create likes (each user likes 5–10 reviews from others)
-  console.log('\nCreating likes…')
-  let likeCount = 0
-
-  for (const u of createdUsers) {
-    const othersReviews = allReviews.filter((r) => r.user_id !== u.id)
-    const tolike = othersReviews.sort(() => Math.random() - 0.5).slice(0, 5 + Math.floor(Math.random() * 6))
-
-    for (const review of tolike) {
-      const { error } = await supabase
-        .from('likes')
-        .insert({ user_id: u.id, review_id: review.id })
-
-      if (!error) likeCount++
+    // Chaque user like 5 à 10 critiques des autres et suit 3 à 6 users
+    for (const userId of users) {
+      for (const r of shuffle(reviews.filter((r) => r.userId !== userId)).slice(0, 5 + Math.floor(Math.random() * 6))) {
+        run('INSERT INTO likes VALUES (?, ?)', userId, r.id)
+      }
+      for (const other of shuffle(users.filter((o) => o !== userId)).slice(0, 3 + Math.floor(Math.random() * 4))) {
+        run("INSERT INTO follows VALUES (?, ?, datetime('now', ?))", userId, other, ago())
+      }
     }
-  }
-  console.log(`  ✓ ${likeCount} likes created`)
-
-  // 6. Create follows (each user follows 3–6 others)
-  console.log('\nCreating follows…')
-  let followCount = 0
-
-  for (const u of createdUsers) {
-    const others = createdUsers.filter((other) => other.id !== u.id)
-    const toFollow = others.sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 4))
-
-    for (const other of toFollow) {
-      const { error } = await supabase
-        .from('follows')
-        .insert({ follower_id: u.id, following_id: other.id })
-
-      if (!error) followCount++
-    }
-  }
-  console.log(`  ✓ ${followCount} follows created`)
-
-  console.log('\n=== Seed complete ===')
-  console.log(`Users: ${createdUsers.length} | Reviews: ${allReviews.length} | Likes: ${likeCount} | Follows: ${followCount}`)
-  console.log('\nTo clean up: node --env-file=.env.local scripts/fakeUsers.js clean')
+    console.log(`${users.length} users, ${reviews.length} critiques créés`)
+  })
 }
 
-// ─── Clean ─────────────────────────────────────────────────────────────
-
-async function clean() {
-  console.log('\n=== Cleaning fake users ===\n')
-
-  // Find all fake auth users by email domain
-  const { data: { users }, error: listErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-  if (listErr) throw listErr
-
-  const fakeUsers = users.filter((u) => u.email?.endsWith(FAKE_EMAIL_DOMAIN))
-  console.log(`Found ${fakeUsers.length} fake users`)
-
-  if (fakeUsers.length === 0) {
-    console.log('Nothing to clean.')
-    return
-  }
-
-  const fakeIds = fakeUsers.map((u) => u.id)
-
-  // Delete in dependency order
-  console.log('Deleting likes…')
-  for (const id of fakeIds) {
-    await supabase.from('likes').delete().eq('user_id', id)
-  }
-
-  // Also delete likes ON fake users' reviews
-  const { data: fakeReviews } = await supabase
-    .from('reviews')
-    .select('id')
-    .in('user_id', fakeIds)
-
-  if (fakeReviews?.length) {
-    const reviewIds = fakeReviews.map((r) => r.id)
-    await supabase.from('likes').delete().in('review_id', reviewIds)
-  }
-
-  console.log('Deleting ratings…')
-  for (const id of fakeIds) {
-    await supabase.from('ratings').delete().eq('user_id', id)
-  }
-
-  console.log('Deleting reviews…')
-  for (const id of fakeIds) {
-    await supabase.from('reviews').delete().eq('user_id', id)
-  }
-
-  console.log('Deleting follows…')
-  for (const id of fakeIds) {
-    await supabase.from('follows').delete().eq('follower_id', id)
-    await supabase.from('follows').delete().eq('following_id', id)
-  }
-
-  console.log('Deleting profiles…')
-  for (const id of fakeIds) {
-    await supabase.from('profiles').delete().eq('id', id)
-  }
-
-  console.log('Deleting auth users…')
-  for (const u of fakeUsers) {
-    const { error } = await supabase.auth.admin.deleteUser(u.id)
-    if (error) console.error(`  x ${u.email}: ${error.message}`)
-    else console.log(`  ✓ ${u.email}`)
-  }
-
-  console.log('\n=== Clean complete ===')
+function clean() {
+  const { changes } = run('DELETE FROM users WHERE email LIKE ?', '%' + FAKE_EMAIL_DOMAIN) // cascade sur tout le reste
+  console.log(`${changes} faux users supprimés`)
 }
 
-// ─── Entry point ───────────────────────────────────────────────────────
-
-const command = process.argv[2]
-
-if (command === 'seed') {
-  seed().catch((err) => { console.error(err); process.exit(1) })
-} else if (command === 'clean') {
-  clean().catch((err) => { console.error(err); process.exit(1) })
-} else {
-  console.error('Usage: node --env-file=.env.local scripts/fakeUsers.js [seed|clean]')
-  process.exit(1)
-}
+const cmd = process.argv[2]
+if (cmd === 'seed') seed()
+else if (cmd === 'clean') clean()
+else console.log('Usage : node scripts/fakeUsers.js seed|clean')

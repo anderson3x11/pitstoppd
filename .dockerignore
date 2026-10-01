@@ -1,0 +1,7 @@
+node_modules
+dist
+storage
+skills
+.git
+.env*
+.claude

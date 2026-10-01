@@ -14,10 +14,15 @@ export default defineConfig({
         // la forme objet dupliquait react-dom entre vendor et index
         manualChunks(id) {
           if (!id.includes('node_modules')) return
-          if (id.includes('@supabase')) return 'supabase'
           return 'vendor'
         },
       },
+    },
+  },
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000',
+      '/avatars': 'http://localhost:3000',
     },
   },
 })

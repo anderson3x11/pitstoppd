@@ -1,40 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import StarRating from '../components/StarRating'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
 import ReviewCard from '../components/ReviewCard'
+import Icon from '../components/Icon'
+import Avatar from '../components/Avatar'
+import { PageSkeleton, EmptyState } from '../components/PageState'
 
 const CURRENT_YEAR = new Date().getFullYear()
-
-function StarDisplay({ avg, size = 'sm' }) {
-  const starSize = size === 'sm' ? 'w-3.5 h-3.5' : 'w-5 h-5'
-  return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => {
-        const fillPct = Math.min(100, Math.max(0, (avg - (s - 1)) * 100))
-        const uid = `star-${s}-${String(avg).replace('.', '_')}`
-        return (
-          <svg key={s} className={starSize} viewBox="0 0 20 20">
-            <defs>
-              <linearGradient id={uid} x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset={`${fillPct}%`} stopColor="#f5c842" />
-                <stop offset={`${fillPct}%`} stopColor="#525252" />
-              </linearGradient>
-            </defs>
-            <path
-              fill={`url(#${uid})`}
-              d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
-            />
-          </svg>
-        )
-      })}
-    </div>
-  )
-}
 
 export default function Profil() {
   const { username } = useParams()
@@ -49,6 +26,7 @@ export default function Profil() {
   const [isFollowing, setIsFollowing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [followLoading, setFollowLoading] = useState(false)
+  const [followError, setFollowError] = useState(null)
 
   const isOwnProfile = currentUserProfile?.username === username
 
@@ -64,377 +42,209 @@ export default function Profil() {
     setIsFollowing(false)
 
     async function load() {
-      const { data: profilData } = await supabase
-        .from('profiles')
-        .select('id, username, display_name, bio, avatar_url, favorite_team, top_pilots')
-        .eq('username', username)
-        .maybeSingle()
-
-      if (!profilData) {
+      const data = await api(`/users/${username}`)
+      if (!data.profil) {
         setLoading(false)
         return
       }
-
-      setProfil(profilData)
-
-      const [
-        { data: ratingsScores },
-        { count: critiquesCount },
-        { count: abonnesCount },
-        { count: abonnementsCount },
-      ] = await Promise.all([
-        supabase.from('ratings').select('score, races(season)').eq('user_id', profilData.id),
-        supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('user_id', profilData.id),
-        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', profilData.id),
-        supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', profilData.id),
-      ])
-
-      const notesCount = ratingsScores?.length ?? 0
-      const currentSeasonCount = (ratingsScores ?? []).filter((r) => r.races?.season === CURRENT_YEAR).length
-      setStats({
-        notes: notesCount,
-        currentSeason: currentSeasonCount,
-        critiques: critiquesCount ?? 0,
-        abonnes: abonnesCount ?? 0,
-        abonnements: abonnementsCount ?? 0,
-      })
-
-      if (notesCount > 0) {
-        const scores = ratingsScores.map((r) => r.score)
-        const avg = scores.reduce((a, b) => a + b, 0) / notesCount
-        const STEPS = [5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.5]
-        const distribution = STEPS.map((v) => ({ value: v, count: scores.filter((s) => s === v).length }))
-        const maxCount = Math.max(...distribution.map((d) => d.count), 1)
-        setRatingStats({ avg: avg.toFixed(1), total: notesCount, distribution, maxCount })
-      }
-
-      const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('id, content, spoiler, created_at, race_id, races(id, name, season, slug), likes(count)')
-        .eq('user_id', profilData.id)
-        .order('created_at', { ascending: false })
-
-      if (reviewsData?.length) {
-        const raceIds = reviewsData.map((r) => r.race_id).filter(Boolean)
-        const { data: ratingsData } = await supabase
-          .from('ratings')
-          .select('race_id, score')
-          .eq('user_id', profilData.id)
-          .in('race_id', raceIds)
-        const ratingMap = {}
-        for (const r of ratingsData ?? []) ratingMap[r.race_id] = r.score
-
-        const mapped = reviewsData.map((r) => ({
-          id: r.id,
-          content: r.content,
-          spoiler: r.spoiler,
-          created_at: r.created_at,
-          raceName: r.races?.name,
-          raceSeason: r.races?.season,
-          raceSlug: r.races?.slug,
-          rating: ratingMap[r.race_id] ?? null,
-          likeCount: r.likes?.[0]?.count ?? 0,
-        }))
-
-        setDernieresReviews(mapped.slice(0, 3))
-
-        const byLikes = [...mapped]
-          .sort((a, b) => b.likeCount - a.likeCount)
-          .slice(0, 3)
-          .filter((r) => r.likeCount > 0)
-        setPopularReviews(byLikes)
-      }
-
-      if (profilData.top_pilots?.length > 0) {
-        const { data: driversData } = await supabase
-          .from('drivers')
-          .select('id, given_name, family_name')
-          .in('id', profilData.top_pilots)
-        const driverMap = {}
-        for (const d of driversData ?? []) driverMap[d.id] = d
-        setTopPilotes(profilData.top_pilots.map((id) => driverMap[id]).filter(Boolean))
-      }
-
-      if (user && user.id !== profilData.id) {
-        const { data: followData } = await supabase
-          .from('follows')
-          .select('follower_id')
-          .eq('follower_id', user.id)
-          .eq('following_id', profilData.id)
-          .maybeSingle()
-        setIsFollowing(!!followData)
-      }
-
+      setProfil(data.profil)
+      setStats(data.stats)
+      setRatingStats(data.ratingStats)
+      setDernieresReviews(data.reviews.slice(0, 3))
+      setPopularReviews([...data.reviews].sort((a, b) => b.likeCount - a.likeCount).slice(0, 3).filter((r) => r.likeCount > 0))
+      setTopPilotes(data.topPilotes)
+      setIsFollowing(data.isFollowing)
       setLoading(false)
     }
 
-    load()
+    load().catch(() => setLoading(false))
   }, [username, user?.id, authLoading])
 
   const handleFollow = async () => {
     if (!user || !profil) return
     setFollowLoading(true)
-    if (isFollowing) {
-      await supabase.from('follows').delete()
-        .eq('follower_id', user.id)
-        .eq('following_id', profil.id)
-      setIsFollowing(false)
-      setStats((prev) => ({ ...prev, abonnes: prev.abonnes - 1 }))
-    } else {
-      await supabase.from('follows').insert({ follower_id: user.id, following_id: profil.id })
-      setIsFollowing(true)
-      setStats((prev) => ({ ...prev, abonnes: prev.abonnes + 1 }))
+    setFollowError(null)
+    try {
+      await api(`/users/${profil.username}/follow`, { method: isFollowing ? 'DELETE' : 'POST' })
+      setStats((prev) => ({ ...prev, abonnes: prev.abonnes + (isFollowing ? -1 : 1) }))
+      setIsFollowing(!isFollowing)
+    } catch (err) {
+      setFollowError(err.message)
     }
     setFollowLoading(false)
   }
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-muted text-sm">Loading…</p>
-      </div>
-    )
-  }
-
-  if (!profil) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-muted text-sm">User not found.</p>
-      </div>
-    )
-  }
+  if (loading) return <PageSkeleton />
+  if (!profil) return <EmptyState page title="User not found" action="Back to home">No Pitstoppd member uses this username.</EmptyState>
 
   const teamColor = getTeamColor(profil.favorite_team)
+  const teamPhoto = getTeamPhoto(profil.favorite_team)
 
-  const showFavorites = profil.favorite_team || topPilotes.length > 0
+  const statItems = [
+    { label: 'Races rated', value: stats.notes },
+    { label: `In ${CURRENT_YEAR}`, value: stats.currentSeason },
+    { label: 'Reviews', value: stats.critiques, to: `/${username}/reviews` },
+    { label: 'Followers', value: stats.abonnes },
+    { label: 'Following', value: stats.abonnements },
+  ]
 
   return (
     <div>
-
-      {/* ── Hero header ── */}
-      <section className="relative border-b border-line bg-[#101010]">
-        {/* Bande plate couleur équipe favorite */}
+      {/* ── En-tête ── */}
+      <section className="relative overflow-hidden border-b border-line bg-card/40">
         <div className="h-1" style={{ background: teamColor?.hex ?? 'var(--color-f1-red)' }} />
-
-        {/* Team logo watermark */}
-        {profil.favorite_team && getTeamPhoto(profil.favorite_team) && (
-          <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-            <div className="mx-auto max-w-6xl px-4 h-full flex items-center justify-end">
-              <img
-                src={getTeamPhoto(profil.favorite_team)}
-                alt=""
-                className="h-48 w-auto object-contain opacity-[0.06]"
-              />
-            </div>
-          </div>
+        {teamPhoto && (
+          <img src={teamPhoto} alt="" aria-hidden="true" className="pointer-events-none select-none absolute right-[max(1rem,calc((100vw-72rem)/2))] top-1/2 -translate-y-1/2 h-40 w-auto object-contain opacity-[0.05]" />
         )}
 
-        <div className="relative mx-auto max-w-6xl px-4 py-16 flex items-center gap-8">
-          {/* Avatar */}
-          <div className="w-32 h-32 rounded-full bg-card-hover border-2 border-line flex items-center justify-center overflow-hidden shrink-0">
-            {profil.avatar_url ? (
-              <img src={profil.avatar_url} alt={profil.display_name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-4xl font-black text-subtle">
-                {profil.display_name?.[0]?.toUpperCase()}
-              </span>
-            )}
-          </div>
+        <div className="relative mx-auto max-w-6xl px-4 py-10 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
+          <Avatar profile={profil} className="w-24 h-24 sm:w-32 sm:h-32 text-4xl ring-2 ring-line-strong" />
 
-          {/* Infos */}
-          <div className="flex-1 space-y-2 min-w-0">
-            <h1 className="font-display text-5xl font-bold text-white leading-tight">{profil.display_name}</h1>
-            <p className="text-base text-subtle">@{profil.username}</p>
-            {profil.bio && (
-              <p className="text-base text-muted leading-relaxed max-w-lg pt-1">{profil.bio}</p>
-            )}
-            <div className="flex items-center gap-6 pt-2">
-              {[
-                { label: 'Watched', value: stats.notes },
-                { label: String(CURRENT_YEAR), value: stats.currentSeason },
-                { label: 'Reviews', value: stats.critiques },
-                { label: 'Followers', value: stats.abonnes },
-                { label: 'Following', value: stats.abonnements },
-              ].map((stat) => (
-                <div key={stat.label}>
-                  <p className="font-display text-2xl font-bold text-white tabular-nums">{stat.value}</p>
-                  <p className="text-xs text-subtle uppercase tracking-wide">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="pt-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <h1 className="font-display text-4xl sm:text-5xl font-bold text-white leading-none">{profil.display_name}</h1>
               {isOwnProfile ? (
-                <Link
-                  to="/settings"
-                  className="inline-block text-sm font-medium border border-line rounded px-4 py-2 text-muted hover:text-white hover:border-subtle transition-colors cursor-pointer"
-                >
-                  Edit profile
-                </Link>
+                <Link to="/settings" className="btn btn-secondary btn-sm">Edit profile</Link>
               ) : user ? (
                 <button
                   onClick={handleFollow}
                   disabled={followLoading}
-                  className={`text-sm font-semibold rounded px-5 py-2 transition-colors disabled:opacity-60 cursor-pointer ${
-                    isFollowing
-                      ? 'border border-line text-muted hover:text-white hover:border-subtle'
-                      : 'bg-f1-red text-white hover:bg-f1-red-hover'
-                  }`}
+                  aria-pressed={isFollowing}
+                  className={`btn btn-sm ${isFollowing ? 'btn-secondary' : 'btn-primary'}`}
                 >
                   {isFollowing ? 'Following' : 'Follow'}
                 </button>
               ) : (
-                <Link
-                  to="/login"
-                  className="inline-block text-sm font-semibold bg-f1-red rounded px-5 py-2 text-white hover:bg-f1-red-hover transition-colors"
-                >
-                  Follow
-                </Link>
+                <Link to="/login" className="btn btn-primary btn-sm">Follow</Link>
               )}
             </div>
+            <p className="mt-1.5 text-subtle">@{profil.username}</p>
+            {profil.bio && <p className="mt-3 text-muted leading-relaxed max-w-[60ch]">{profil.bio}</p>}
+            {followError && <p role="alert" className="mt-2 text-sm text-red-400">{followError}</p>}
           </div>
+
+          <dl className="flex flex-wrap gap-x-6 gap-y-3 sm:justify-end lg:flex-nowrap lg:divide-x lg:divide-line lg:gap-x-0">
+            {statItems.map((s) => {
+              const value = <dd className="font-display text-3xl font-bold text-white tabular-nums leading-none">{s.value}</dd>
+              return (
+                <div key={s.label} className="flex flex-col-reverse items-start lg:items-center lg:px-5 gap-1">
+                  <dt className="text-xs text-subtle whitespace-nowrap">{s.label}</dt>
+                  {s.to ? <Link to={s.to} className="hover:text-f1-red [&_dd]:hover:text-f1-red [&_dd]:transition-colors">{value}</Link> : value}
+                </div>
+              )
+            })}
+          </dl>
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-4 py-10 space-y-10">
-
-        {/* ── Favorites + Statistics ── */}
-        {(showFavorites || ratingStats) && (
-          <section className={`grid gap-8 items-stretch ${showFavorites && ratingStats ? 'grid-cols-[1fr_auto]' : ''}`}>
-
-            {/* Favorites */}
-            {showFavorites && (
-              <div className="flex flex-col">
-                <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Favorites</h2>
-                {topPilotes.length > 0 && (
-                  <div className="flex gap-3 mb-3">
-                    {topPilotes.map((driver, i) => {
-                      const photo = getDriverPhoto(driver)
-                      return (
-                        <Link key={driver.id} to={`/pilotes/${driver.id}`} className="flex-1 group">
-                          <div className="relative aspect-[2/3] rounded-lg overflow-hidden border border-line bg-card-hover">
-                            {photo ? (
-                              <img
-                                src={photo}
-                                alt={`${driver.given_name} ${driver.family_name}`}
-                                loading="lazy"
-                                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-card-hover to-card">
-                                <span className="text-2xl font-black text-subtle">
-                                  {driver.given_name?.[0]}{driver.family_name?.[0]}
-                                </span>
-                              </div>
-                            )}
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/60 to-transparent px-3 pt-12 pb-3">
-                              <p className="text-xs font-bold text-white truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{driver.family_name}</p>
-                              <p className="text-[10px] text-white/60 truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{driver.given_name}</p>
-                            </div>
-                          </div>
-                          <p className="text-center text-sm font-black text-f1-red mt-2">{i + 1}</p>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
-                {profil.favorite_team && (() => {
-                  const teamPhoto = getTeamPhoto(profil.favorite_team)
+      <div className="mx-auto max-w-6xl px-4 py-10 grid gap-12 lg:grid-cols-[1fr_260px]">
+        <div className="min-w-0 space-y-12">
+          {topPilotes.length > 0 && (
+            <section>
+              <h2 className="section-title border-b border-line pb-3 mb-4">Favorite drivers</h2>
+              <ol className="grid grid-cols-3 gap-3 max-w-md">
+                {topPilotes.map((driver, i) => {
+                  const photo = getDriverPhoto(driver)
                   return (
-                    <div
-                      className="mt-auto rounded-lg border px-5 py-3 flex items-center gap-5"
-                      style={{
-                        borderColor: teamColor ? `${teamColor.hex}50` : '#262626',
-                        background: teamColor
-                          ? `linear-gradient(135deg, rgba(${teamColor.rgb[0]},${teamColor.rgb[1]},${teamColor.rgb[2]},0.08) 0%, #141414 100%)`
-                          : '#141414',
-                      }}
-                    >
-                      {teamPhoto && (
-                        <img src={teamPhoto} alt={profil.favorite_team} className="h-8 w-auto object-contain shrink-0" />
-                      )}
-                      <div>
-                        <p className="text-xs text-subtle mb-0.5">Favorite Team</p>
-                        <p className="text-base font-black text-white">{profil.favorite_team}</p>
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-            )}
-
-            {/* Statistics */}
-            {ratingStats && (
-              <div className="w-52 shrink-0 flex flex-col">
-                <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Statistics</h2>
-                <div className="rounded-lg border border-line bg-card p-4 space-y-4 flex-1">
-                  <div className="text-center">
-                    <p className="text-4xl font-black text-white leading-none">{ratingStats.avg}</p>
-                    <div className="flex justify-center mt-2">
-                      <StarDisplay avg={parseFloat(ratingStats.avg)} />
-                    </div>
-                    <p className="text-xs text-subtle mt-1.5">{ratingStats.total} rating{ratingStats.total !== 1 ? 's' : ''}</p>
-                  </div>
-                  <div className="border-t border-line" />
-                  <div className="space-y-1.5">
-                    {ratingStats.distribution.map(({ value, count }) => (
-                      <div key={value} className="flex items-center gap-2">
-                        <span className="text-[10px] text-subtle w-6 text-right shrink-0 tabular-nums">{value}</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-card-hover overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-star"
-                            style={{ width: `${(count / ratingStats.maxCount) * 100}%` }}
-                          />
+                    <li key={driver.id}>
+                      <Link to={`/pilotes/${driver.id}`} className="group block">
+                        <div className="relative aspect-[2/3] rounded-md overflow-hidden ring-1 ring-inset ring-white/10 bg-card-hover">
+                          {photo ? (
+                            <img src={photo} alt="" loading="lazy" className="w-full h-full object-cover object-top transition-transform duration-500 ease-[var(--ease-out)] group-hover:scale-105" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="font-display text-3xl font-bold text-subtle">{driver.given_name?.[0]}{driver.family_name?.[0]}</span>
+                            </div>
+                          )}
+                          <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs font-bold text-white">{i + 1}</span>
                         </div>
-                        <span className="text-[10px] text-subtle w-3 shrink-0 tabular-nums">{count > 0 ? count : ''}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                        <p className="mt-2 text-sm text-white truncate group-hover:text-f1-red transition-colors">
+                          <span className="text-muted">{driver.given_name}</span> <span className="font-semibold">{driver.family_name}</span>
+                        </p>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ol>
+            </section>
+          )}
+
+          <section>
+            <div className="flex items-end justify-between gap-4 border-b border-line pb-3">
+              <h2 className="section-title">Recent reviews</h2>
+              {stats.critiques > 3 && (
+                <Link to={`/${username}/reviews`} className="inline-flex items-center gap-1 text-sm text-muted hover:text-white transition-colors">
+                  All {stats.critiques} <Icon name="arrowRight" className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
+            {dernieresReviews.length > 0 ? (
+              <div>{dernieresReviews.map((review) => <ReviewCard key={review.id} review={review} />)}</div>
+            ) : (
+              <div className="mt-6">
+                <EmptyState title="No reviews yet" action={isOwnProfile ? 'Find a race to review' : undefined} to="/gps">
+                  {isOwnProfile ? 'Your reviews will show up here.' : `${profil.display_name} hasn't reviewed a race yet.`}
+                </EmptyState>
               </div>
             )}
           </section>
-        )}
 
-        {/* ── Latest Reviews ── */}
-        <section>
-          <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Latest Reviews</h2>
-          {dernieresReviews.length > 0 ? (
-            <>
-              <div className="space-y-3">
-                {dernieresReviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
+          {popularReviews.length > 0 && (
+            <section>
+              <div className="flex items-end justify-between gap-4 border-b border-line pb-3">
+                <h2 className="section-title">Popular reviews</h2>
+                <Link to={`/${username}/reviews?sort=likes`} className="inline-flex items-center gap-1 text-sm text-muted hover:text-white transition-colors">
+                  Most liked <Icon name="arrowRight" className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+              <div>{popularReviews.map((review) => <ReviewCard key={review.id} review={review} />)}</div>
+            </section>
+          )}
+        </div>
+
+        <aside className="space-y-10">
+          {ratingStats && (
+            <section>
+              <h2 className="section-title border-b border-line pb-3 mb-4">Ratings</h2>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-4xl font-bold text-white tabular-nums">{ratingStats.avg}</span>
+                <StarRating value={Math.round(parseFloat(ratingStats.avg) * 2) / 2} />
+              </div>
+              <p className="text-sm text-subtle">{ratingStats.total} {ratingStats.total === 1 ? 'rating' : 'ratings'}</p>
+              {/* Histogramme façon Letterboxd : de 0.5 à 5, barres verticales */}
+              <div className="mt-4 flex items-end gap-1 h-20" role="img" aria-label="Rating distribution">
+                {[...ratingStats.distribution].reverse().map(({ value, count }) => (
+                  <div key={value} className="group relative flex-1 h-full flex items-end" title={`${value}★ · ${count}`}>
+                    <div
+                      className="w-full rounded-t-sm bg-line-strong group-hover:bg-star transition-colors"
+                      style={{ height: `${Math.max(4, (count / ratingStats.maxCount) * 100)}%` }}
+                    />
+                  </div>
                 ))}
               </div>
-              <Link
-                to={`/${username}/reviews`}
-                className="inline-block mt-4 text-sm text-muted underline underline-offset-4 hover:text-white transition-colors"
-              >
-                See all reviews
-              </Link>
-            </>
-          ) : (
-            <p className="text-sm text-subtle">No reviews yet.</p>
+              <div className="mt-1.5 flex justify-between text-xs text-subtle">
+                <span>½★</span>
+                <span>5★</span>
+              </div>
+            </section>
           )}
-        </section>
 
-        {/* ── Popular Reviews ── */}
-        {popularReviews.length > 0 && (
-          <section>
-            <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Popular Reviews</h2>
-            <div className="space-y-3">
-              {popularReviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
-              ))}
-            </div>
-            <Link
-              to={`/${username}/reviews?sort=likes`}
-              className="inline-block mt-4 text-sm text-muted underline underline-offset-4 hover:text-white transition-colors"
-            >
-              See most liked
-            </Link>
-          </section>
-        )}
-
+          {profil.favorite_team && (
+            <section>
+              <h2 className="section-title border-b border-line pb-3 mb-4">Favorite team</h2>
+              <div
+                className="rounded-lg border px-4 py-3 flex items-center gap-4"
+                style={{
+                  borderColor: teamColor ? `${teamColor.hex}55` : 'var(--color-line)',
+                  background: teamColor ? `linear-gradient(135deg, rgba(${teamColor.rgb.join(',')},0.10), var(--color-card) 70%)` : 'var(--color-card)',
+                }}
+              >
+                {teamPhoto && <img src={teamPhoto} alt="" className="h-7 w-auto object-contain shrink-0" />}
+                <p className="font-semibold text-white">{profil.favorite_team}</p>
+              </div>
+            </section>
+          )}
+        </aside>
       </div>
     </div>
   )

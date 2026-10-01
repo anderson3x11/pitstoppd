@@ -1,139 +1,125 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import SearchUsers from "./SearchUsers";
+import Icon from "./Icon";
+import Avatar from "./Avatar";
 
-const navLinkClass = ({ isActive }) =>
-  `text-sm font-medium transition-colors duration-150 ${
-    isActive ? "text-white underline decoration-f1-red decoration-2 underline-offset-8" : "text-muted hover:text-white"
+const NAV = [
+  { to: "/gps", label: "Grands Prix" },
+  { to: "/pilotes", label: "Drivers" },
+  { to: "/saisons", label: "Seasons" },
+];
+
+const desktopLink = ({ isActive }) =>
+  `relative py-1 text-sm font-medium transition-colors duration-150 after:absolute after:inset-x-0 after:-bottom-[17px] after:h-0.5 after:rounded-full after:transition-colors ${
+    isActive ? "text-white after:bg-f1-red" : "text-muted hover:text-white after:bg-transparent"
   }`;
+
+const mobileLink = ({ isActive }) =>
+  `flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+    isActive ? "text-white border-f1-red" : "text-muted border-transparent"
+  }`;
+
+function UserMenu({ profile, onSignOut }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const item = "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-muted hover:text-white hover:bg-card-hover transition-colors";
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 text-sm font-medium text-muted hover:text-white hover:bg-card-hover transition-colors cursor-pointer"
+      >
+        <Avatar profile={profile} className="h-7 w-7 text-xs" />
+        <span className="hidden sm:block max-w-32 truncate">{profile.display_name}</span>
+        <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div role="menu" onClick={() => setOpen(false)} className="absolute right-0 top-full mt-2 w-52 rounded-lg border border-line-strong bg-card p-1 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.7)] origin-top-right animate-[menu-in_160ms_var(--ease-out)]">
+          <div className="px-3 py-2 border-b border-line mb-1">
+            <p className="text-sm font-semibold text-white truncate">{profile.display_name}</p>
+            <p className="text-xs text-subtle truncate">@{profile.username}</p>
+          </div>
+          <Link role="menuitem" to={`/${profile.username}`} className={item}>
+            <Icon name="user" /> Profile
+          </Link>
+          <Link role="menuitem" to="/settings" className={item}>
+            <Icon name="settings" /> Settings
+          </Link>
+          <button role="menuitem" onClick={onSignOut} className={`${item} w-full cursor-pointer`}>
+            <Icon name="logout" /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Navbar() {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const handleSignOut = async () => {
-    setDropdownOpen(false);
     await signOut();
     navigate("/");
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-card/80 backdrop-blur-md">
-      <nav className="mx-auto flex h-14 max-w-6xl items-center px-4">
-        {/* Logo — left */}
-        <div className="flex-1">
-          <Link to="/" className="flex items-center gap-2 select-none w-fit">
-            <img
-              src="/pitstoppd-logo.svg"
-              alt="Pitstoppd"
-              className="h-5 w-auto"
-            />
-            <span className="text-lg font-black tracking-normal text-f1-red">
-              Pitstoppd
+    <header className="sticky top-0 z-50 border-b border-line bg-page/85 backdrop-blur-md">
+      <nav aria-label="Main" className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
+        <div className="flex-1 min-w-0">
+          <Link to="/" className="flex items-center gap-2 select-none w-fit" aria-label="Pitstoppd home">
+            <img src="/pitstoppd-logo.svg" alt="" className="h-5 w-auto" />
+            <span className="font-display text-[22px] font-bold tracking-[-0.03em] text-f1-red leading-none">
+              pitstoppd
             </span>
           </Link>
         </div>
 
-        {/* Navigation links — centered (hidden when search open) */}
-        {!searchOpen && (
-          <div className="flex items-center gap-6">
-            <NavLink to="/gps" className={navLinkClass}>
-              Grands Prix
-            </NavLink>
-            <NavLink to="/pilotes" className={navLinkClass}>
-              Drivers
-            </NavLink>
-            <NavLink to="/saisons" className={navLinkClass}>
-              Seasons
-            </NavLink>
-          </div>
-        )}
+        <div className={`hidden md:flex items-center gap-7 ${searchOpen ? "invisible" : ""}`}>
+          {NAV.map((n) => <NavLink key={n.to} to={n.to} className={desktopLink}>{n.label}</NavLink>)}
+        </div>
 
-        {/* Right side */}
-        <div className="flex-1 flex items-center justify-end gap-4">
-          {/* Auth (hidden when search open) */}
-          {!searchOpen && (
-            <>
-              {user && profile ? (
-                <div
-                  className="relative"
-                  onMouseEnter={() => setDropdownOpen(true)}
-                  onMouseLeave={() => setDropdownOpen(false)}
-                >
-                  <button className="flex items-center gap-2 text-sm font-medium text-muted hover:text-white transition-colors">
-                    <div className="h-7 w-7 rounded-full bg-card-hover border border-line overflow-hidden">
-                      {profile.avatar_url ? (
-                        <img
-                          src={profile.avatar_url}
-                          alt={profile.display_name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-xs text-subtle">
-                          {profile.display_name[0].toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <span>{profile.display_name}</span>
-                    <svg className="w-3 h-3 text-subtle" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {dropdownOpen && (
-                    <div className="absolute right-0 top-full pt-2 w-44">
-                      <div className="rounded-lg border border-line bg-card shadow-xl py-1">
-                        <Link
-                          to={`/${profile.username}`}
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-muted hover:text-white hover:bg-card-hover transition-colors"
-                        >
-                          Profile
-                        </Link>
-                        <Link
-                          to="/settings"
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-muted hover:text-white hover:bg-card-hover transition-colors"
-                        >
-                          Settings
-                        </Link>
-                        <div className="my-1 border-t border-line" />
-                        <button
-                          onClick={handleSignOut}
-                          className="w-full text-left flex items-center gap-2.5 px-4 py-2 text-sm text-subtle hover:text-white hover:bg-card-hover transition-colors"
-                        >
-                          Sign out
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <Link
-                    to="/login"
-                    className="text-sm font-medium text-muted hover:text-white transition-colors duration-150"
-                  >
-                    Sign in
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="rounded bg-f1-red px-3 py-1.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors duration-150"
-                  >
-                    Sign up
-                  </Link>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Search — always mounted, rightmost */}
+        <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3">
           <SearchUsers onOpenChange={setSearchOpen} />
+          {!searchOpen && (
+            user && profile ? (
+              <UserMenu profile={profile} onSignOut={handleSignOut} />
+            ) : (
+              <>
+                <Link to="/login" className="whitespace-nowrap text-sm font-medium text-muted hover:text-white transition-colors px-1">
+                  Sign in
+                </Link>
+                <Link to="/register" className="btn btn-primary btn-sm">
+                  Sign up
+                </Link>
+              </>
+            )
+          )}
         </div>
       </nav>
+
+      <div className="md:hidden flex border-t border-line px-2">
+        {NAV.map((n) => <NavLink key={n.to} to={n.to} className={mobileLink}>{n.label}</NavLink>)}
+      </div>
     </header>
   );
 }

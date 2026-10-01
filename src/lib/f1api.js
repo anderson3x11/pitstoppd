@@ -1,4 +1,4 @@
-const BASE = 'https://api.jolpi.ca/ergast/f1'
+const BASE = '/api/f1' // proxy serveur avec cache vers Jolpica
 
 // Cache sessionStorage : évite de re-fetcher Jolpica à chaque navigation
 async function fetchJson(url) {

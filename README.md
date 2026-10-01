@@ -4,7 +4,7 @@
 
 Rate and review past F1 races, follow other fans, and see what your friends thought of the latest GP.
 
-**Live:** [pitstoppd.vercel.app](https://pitstoppd.vercel.app)
+**Live:** [pitstoppd.anderson3x11.dev](https://pitstoppd.anderson3x11.dev)
 
 ---
 
@@ -24,7 +24,8 @@ Rate and review past F1 races, follow other fans, and see what your friends thou
 | React 19 | UI framework |
 | Vite 7 | Build tooling (SWC) |
 | Tailwind CSS v4 | Styling (CSS-first config) |
-| Supabase | Auth, Postgres DB, Storage, Row Level Security |
+| Hono (Node) | REST API, cookie sessions, serves the built front |
+| SQLite (`node:sqlite`) | Database, zero external service |
 | React Router DOM | Client-side routing |
 | Jolpica-F1 API | F1 data (successor to Ergast) |
 
@@ -36,7 +37,24 @@ Actively in development. The database covers all F1 seasons from 2020 to present
 
 Race data (schedules, results, drivers) comes from the [Jolpica-F1 API](https://api.jolpi.ca/ergast/f1/). Driver photos are sourced from Wikipedia. GP poster images come from [TheSportsDB](https://www.thesportsdb.com/).
 
-The `scripts/` folder contains seed and refresh scripts for populating and updating the database.
+Reference data (races, posters, drivers, results) lives in `data/*.json` and is loaded into SQLite on first start.
+
+## Run locally
+
+```bash
+npm install
+npm run dev:api   # API on :3000 (creates storage/pitstoppd.db)
+npm run dev       # Vite on :5173, proxies /api to :3000
+npm run check     # end-to-end API test on a throwaway DB
+```
+
+`npm run fake-users seed` (or `clean`) adds or removes demo users. `npm run refresh` pulls the current season from Jolpica.
+
+## Deploy (Coolify)
+
+1. New resource from this repo, build pack **Dockerfile**, port `3000`.
+2. Add a persistent volume mounted on `/data` (database + avatars).
+3. Scheduled task, daily: `npm run refresh`.
 
 ---
 

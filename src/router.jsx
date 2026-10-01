@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import RootLayout from './layouts/RootLayout'
+import { PageSkeleton } from './components/PageState'
+import NotFound from './pages/NotFound'
 import Home from './pages/Home'
 const GrandsPrix = lazy(() => import('./pages/GrandsPrix'))
 const GrandPrix = lazy(() => import('./pages/GrandPrix'))
@@ -18,7 +20,7 @@ const Search = lazy(() => import('./pages/Search'))
 
 function Lazy({ children }) {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>}>
+    <Suspense fallback={<PageSkeleton />}>
       {children}
     </Suspense>
   )
@@ -28,6 +30,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
+    errorElement: <RootLayout><NotFound /></RootLayout>,
     children: [
       { index: true, element: <Home /> },
       { path: 'gps', element: <Lazy><GrandsPrix /></Lazy> },

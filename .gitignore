@@ -31,3 +31,9 @@ dist-ssr
 # Claude Code
 .claude/
 CLAUDE.md
+
+# Base SQLite + avatars en local
+storage/
+
+# Skills Claude tiers (pas du code de l app)
+skills/

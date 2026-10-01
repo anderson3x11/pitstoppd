@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { PageSkeleton, EmptyState } from '../components/PageState'
+import { api } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getWDC } from '../lib/driverWDC'
-import { TODAY } from '../lib/constants'
 import { getPageCache, setPageCache } from '../lib/pageCache'
 
 export default function Pilote() {
@@ -29,65 +29,24 @@ export default function Pilote() {
     }
 
     async function load() {
-      // Parallel: driver info + race entries + races metadata
-      const [
-        { data: driverData },
-        { data: rdData },
-        { data: racesData },
-      ] = await Promise.all([
-        supabase.from('drivers').select('*').eq('id', id).single(),
-        supabase.from('race_drivers').select('race_id, position, grid_position, status').eq('driver_id', id),
-        supabase.from('races').select('id, season, name, slug, date, race_type'),
-      ])
-
+      const { pilote: driverData, stats: newStats, derniersGPs: recent } = await api(`/drivers/${id}`)
       if (!driverData) {
         setLoading(false)
         return
       }
       setPilote(driverData)
-
-      // Join client-side (avoids cross-table join on large table)
-      const raceLookup = {}
-      for (const r of racesData ?? []) raceLookup[r.id] = r
-
-      const entries = (rdData ?? [])
-        .map((rd) => ({ ...rd, races: raceLookup[rd.race_id] }))
-        .filter((rd) => rd.races?.date)
-        .sort((a, b) => new Date(b.races.date) - new Date(a.races.date))
-
-      const racesOnly = entries.filter((rd) => rd.races.race_type === 'race')
-
-      const newStats = {
-        wins: racesOnly.filter((rd) => rd.position === 1).length,
-        podiums: racesOnly.filter((rd) => rd.position != null && rd.position <= 3).length,
-        courses: racesOnly.length,
-      }
-      const recent = entries.filter((rd) => rd.races.date < TODAY).slice(0, 10)
-
       setStats(newStats)
       setDerniersGPs(recent)
       setPageCache(`pilote:${id}`, { pilote: driverData, stats: newStats, derniersGPs: recent })
       setLoading(false)
     }
 
-    load()
+    load().catch(() => setLoading(false))
   }, [id, authLoading])
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-muted text-sm">Loading…</p>
-      </div>
-    )
-  }
+  if (loading) return <PageSkeleton />
 
-  if (!pilote) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-muted text-sm">Driver not found.</p>
-      </div>
-    )
-  }
+  if (!pilote) return <EmptyState page title="Driver not found" action="All drivers" to="/pilotes">No driver matches this address.</EmptyState>
 
   const age = pilote.date_of_birth
     ? Math.floor((new Date() - new Date(pilote.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
@@ -111,20 +70,20 @@ export default function Pilote() {
     <div>
 
       {/* ── Hero header ── */}
-      <section className="relative border-b border-line bg-[#101010]">
+      <section className="relative overflow-hidden border-b border-line bg-card/40">
         {pilote.number != null && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
             <div className="mx-auto max-w-6xl px-4 h-full flex items-center justify-end">
-              <span className="font-display font-black italic text-[20rem] text-white/[0.03] leading-none">
+              <span className="font-display font-bold text-[12rem] sm:text-[20rem] text-white/[0.04] leading-none">
                 {pilote.number}
               </span>
             </div>
           </div>
         )}
 
-        <div className="relative mx-auto max-w-6xl px-4 py-16 flex items-end gap-10">
+        <div className="relative mx-auto max-w-6xl px-4 py-10 sm:py-14 flex items-end gap-6 sm:gap-10">
           {/* Photo */}
-          <div className="hidden sm:block w-48 shrink-0 rounded overflow-hidden border border-line aspect-[2/3] bg-card-hover">
+          <div className="w-28 sm:w-48 shrink-0 rounded-md overflow-hidden ring-1 ring-inset ring-white/10 aspect-[2/3] bg-card-hover shadow-[0_24px_48px_-16px_rgba(0,0,0,0.9)]">
             {getDriverPhoto(pilote) ? (
               <img
                 src={getDriverPhoto(pilote)}
@@ -134,7 +93,7 @@ export default function Pilote() {
             ) : (
               <div className="h-full w-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-card-hover to-card p-3">
                 {pilote.number != null && (
-                  <span className="text-3xl font-black text-subtle leading-none">{pilote.number}</span>
+                  <span className="font-display text-5xl font-bold text-line-strong leading-none">{pilote.number}</span>
                 )}
                 <span className="text-lg font-bold text-subtle">{initiales}</span>
               </div>
@@ -143,69 +102,64 @@ export default function Pilote() {
 
           {/* Infos */}
           <div className="flex-1 space-y-3 min-w-0 pb-1">
-            <div className="flex items-center gap-2 text-sm text-subtle">
-              <Link to="/pilotes" className="hover:text-white transition-colors cursor-pointer">Drivers</Link>
-            </div>
-            <h1 className="font-display font-black italic text-6xl md:text-7xl uppercase tracking-tight text-white leading-none pr-3">
+            <nav aria-label="Breadcrumb" className="text-sm text-subtle">
+              <Link to="/pilotes" className="hover:text-white transition-colors">Drivers</Link>
+            </nav>
+            <h1 className="font-display font-bold text-4xl sm:text-6xl md:text-7xl uppercase tracking-tight text-white leading-[0.92] pr-3">
               {pilote.given_name} <span className="text-f1-red">{pilote.family_name}</span>
             </h1>
             <p className="text-base text-muted">
               {[pilote.nationality, age != null ? `${age} years old` : null].filter(Boolean).join(' · ')}
             </p>
             {pilote.bio && (
-              <p className="text-base text-muted leading-relaxed max-w-lg pt-1">{pilote.bio}</p>
+              <p className="text-base text-muted leading-relaxed max-w-[65ch] pt-1">{pilote.bio}</p>
             )}
           </div>
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-4 py-10 space-y-10">
+      <div className="mx-auto max-w-6xl px-4 py-10 space-y-12">
 
         {/* ── Stats ── */}
         <section>
-          <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">
-            Statistics <span className="text-subtle font-sans font-normal text-sm normal-case tracking-normal">(2000–present)</span>
+          <h2 className="section-title border-b border-line pb-3 mb-4">
+            Career <span className="font-sans text-base font-normal normal-case tracking-normal text-subtle">since 2000</span>
           </h2>
-          <div className={`grid gap-3 ${statsList.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          <dl className={`grid gap-3 grid-cols-2 ${statsList.length === 4 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
             {statsList.map((stat) => (
-              <div key={stat.label} className={`rounded-lg border px-3 py-5 text-center ${stat.highlight ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-line bg-card'}`}>
-                <p className={`font-display text-5xl font-bold tabular-nums ${stat.highlight ? 'text-yellow-400' : 'text-white'}`}>{stat.value}</p>
-                <p className="text-xs text-subtle mt-1 uppercase tracking-wide">{stat.label}</p>
+              <div key={stat.label} className={`flex flex-col-reverse rounded-lg border px-4 py-4 ${stat.highlight ? 'border-star/40 bg-star/5' : 'border-line bg-card'}`}>
+                <dt className="text-sm text-subtle">{stat.label === 'WDC' ? 'World titles' : stat.label}</dt>
+                <dd className={`font-display text-4xl sm:text-5xl font-bold tabular-nums ${stat.highlight ? 'text-star' : 'text-white'}`}>{stat.value}</dd>
               </div>
             ))}
-          </div>
+          </dl>
         </section>
 
         {/* ── Recent races ── */}
         <section>
-          <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Recent Races</h2>
+          <h2 className="section-title border-b border-line pb-3 mb-4">Recent races</h2>
           {derniersGPs.length > 0 ? (
-            <div className="space-y-2">
+            <ol className="rounded-lg border border-line bg-card/50">
               {derniersGPs.map((rd) => {
                 const race = rd.races
                 return (
-                  <Link
-                    key={race.id}
-                    to={`/gps/${race.season}/${race.slug}`}
-                    className="flex items-center justify-between rounded-lg border border-line bg-card px-4 py-3 hover:border-subtle hover:bg-card-hover transition-colors cursor-pointer"
-                  >
-                    <span className="text-sm font-medium text-white">{race.name}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-subtle">{race.season}</span>
-                      {rd.position != null ? (
-                        <span className={`text-sm font-bold ${rd.position === 1 ? 'text-f1-red' : 'text-muted'}`}>
-                          P{rd.position}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-subtle">{rd.status ?? 'DNF'}</span>
-                      )}
-                    </div>
-                  </Link>
+                  <li key={race.id} className="border-b border-line last:border-0">
+                    <Link
+                      to={`/gps/${race.season}/${race.slug}`}
+                      className="flex items-center gap-4 px-4 py-3 hover:bg-card-hover transition-colors"
+                    >
+                      <span className={`w-10 text-sm font-semibold tabular-nums ${rd.position === 1 ? 'text-star' : rd.position != null ? 'text-white' : 'text-subtle'}`}>
+                        {rd.position != null ? `P${rd.position}` : 'DNF'}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate text-sm text-white">{race.name}</span>
+                      <span className="text-xs text-subtle shrink-0">{rd.position == null && rd.status ? `${rd.status} · ` : ''}{race.season}</span>
+                    </Link>
+                  </li>
                 )
               })}
-            </div>
+            </ol>
           ) : (
-            <p className="text-sm text-subtle">No races available.</p>
+            <EmptyState title="No races on record">This driver has no results in the races Pitstoppd covers.</EmptyState>
           )}
         </section>
 

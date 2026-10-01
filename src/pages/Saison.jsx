@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import Icon from '../components/Icon'
+import Segmented from '../components/Segmented'
+import { PageSkeleton, EmptyState } from '../components/PageState'
+import { api } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import { getDriverStandings, getConstructorStandings } from '../lib/f1api'
 import { getDriverPhoto } from '../lib/driverPhotos'
 import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
-import { TODAY } from '../lib/constants'
-import { computeAvgRating, groupRatingsByRace } from '../lib/ratingUtils'
 import { getPageCache, setPageCache } from '../lib/pageCache'
 
 export default function Saison() {
@@ -42,49 +43,15 @@ export default function Saison() {
     setTab('drivers')
 
     async function load() {
-      // Fetch standings from Jolpica + race stats from Supabase in parallel
-      const [driverRes, constructorRes, racesRes] = await Promise.all([
+      // Classements (proxy Jolpica) + stats de notes (API) en parallèle
+      const [driverRes, constructorRes, { seasonStats: stats, topRatedRaces: topRated }] = await Promise.all([
         getDriverStandings(season).catch(() => null),
         getConstructorStandings(season).catch(() => null),
-        supabase
-          .from('races')
-          .select('id, name, slug, country, date, race_type')
-          .eq('season', season)
-          .eq('race_type', 'race')
-          .lt('date', TODAY)
-          .order('date', { ascending: true }),
+        api(`/seasons/${season}`),
       ])
 
       setDriverStandings(driverRes)
       setConstructorStandings(constructorRes)
-
-      const races = racesRes.data ?? []
-      let stats = { raceCount: 0, totalRatings: 0, avgRating: null }
-      let topRated = []
-
-      if (races.length > 0) {
-        const raceIds = races.map((r) => r.id)
-        const { data: ratingsData } = await supabase
-          .from('ratings')
-          .select('score, race_id')
-          .in('race_id', raceIds)
-
-        const scoresByRace = groupRatingsByRace(ratingsData)
-        const allScores = (ratingsData ?? []).map((r) => r.score)
-
-        stats = {
-          raceCount: races.length,
-          totalRatings: allScores.length,
-          avgRating: computeAvgRating(allScores),
-        }
-
-        // Top rated races
-        topRated = races.map((race) => {
-          const scores = scoresByRace[race.id] ?? []
-          return { ...race, avg: computeAvgRating(scores), ratingCount: scores.length }
-        }).filter((r) => r.avg != null).sort((a, b) => b.avg - a.avg).slice(0, 5)
-      }
-
       setSeasonStats(stats)
       setTopRatedRaces(topRated)
       setPageCache(`saison:${season}`, {
@@ -96,20 +63,22 @@ export default function Saison() {
       setLoading(false)
     }
 
-    load()
+    load().catch(() => setLoading(false))
   }, [season, authLoading])
 
-  if (loading) return <div className="mx-auto max-w-6xl px-4 py-10"><p className="text-muted text-sm">Loading…</p></div>
+  if (loading) return <PageSkeleton />
+  if (!seasonStats && !driverStandings) return <EmptyState page title={`No data for ${annee}`} action="All seasons" to="/saisons">This season isn't covered. Pitstoppd tracks every season from 2000.</EmptyState>
 
   const champion = driverStandings?.DriverStandings?.[0]
   const championTeam = champion?.Constructors?.[0]?.name
   const teamColor = getTeamColor(championTeam)
   const teamPhoto = getTeamPhoto(championTeam)
+  const inProgress = season >= new Date().getFullYear()
 
   return (
     <div>
       {/* ── Hero ── */}
-      <section className="relative border-b border-line bg-[#101010]">
+      <section className="relative overflow-hidden border-b border-line bg-card/40">
         {/* Bande plate couleur équipe championne */}
         <div className="h-1" style={{ background: teamColor?.hex ?? 'var(--color-f1-red)' }} />
 
@@ -121,18 +90,18 @@ export default function Saison() {
           </div>
         )}
 
-        <div className="relative mx-auto max-w-6xl px-4 py-16">
-          <div className="flex items-center gap-2 text-sm text-subtle mb-4">
+        <div className="relative mx-auto max-w-6xl px-4 py-10 sm:py-14">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-subtle mb-3">
             <Link to="/saisons" className="hover:text-white transition-colors">Seasons</Link>
-            <span>/</span>
-            <span>{annee}</span>
-          </div>
+            <span aria-hidden="true">/</span>
+            <span className="text-muted">{annee}</span>
+          </nav>
 
-          <h1 className="font-display font-black italic text-6xl md:text-7xl uppercase tracking-tight text-white leading-none mb-4 pr-3">Season {annee}</h1>
+          <h1 className="font-display font-bold text-5xl sm:text-7xl uppercase tracking-tight text-white leading-none mb-4 pr-3">{annee} season</h1>
 
           {champion && (
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-f1-red">Champion</span>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-6">
+              <span className="text-sm text-muted">{inProgress ? 'Championship leader' : 'World champion'}</span>
               <span className="text-lg font-black text-white">
                 {champion.Driver.givenName} {champion.Driver.familyName}
               </span>
@@ -142,34 +111,34 @@ export default function Saison() {
             </div>
           )}
 
-          <div className="flex items-center gap-8">
+          <dl className="flex flex-wrap items-center gap-x-8 gap-y-4">
             {seasonStats && (
               <>
-                <div>
-                  <p className="font-display text-3xl font-bold text-white tabular-nums">{seasonStats.raceCount}</p>
-                  <p className="text-xs text-subtle uppercase tracking-wide">Races</p>
+                <div className="flex flex-col-reverse">
+                  <dt className="text-sm text-subtle">Races</dt>
+                  <dd className="font-display text-3xl font-bold text-white tabular-nums">{seasonStats.raceCount}</dd>
                 </div>
                 {seasonStats.avgRating != null && (
-                  <div>
-                    <p className="font-display text-3xl font-bold text-star tabular-nums">{seasonStats.avgRating}</p>
-                    <p className="text-xs text-subtle uppercase tracking-wide">Avg rating</p>
+                  <div className="flex flex-col-reverse">
+                    <dt className="text-sm text-subtle">Avg rating</dt>
+                    <dd className="font-display text-3xl font-bold text-star tabular-nums">{seasonStats.avgRating}</dd>
                   </div>
                 )}
                 {seasonStats.totalRatings > 0 && (
-                  <div>
-                    <p className="font-display text-3xl font-bold text-white tabular-nums">{seasonStats.totalRatings}</p>
-                    <p className="text-xs text-subtle uppercase tracking-wide">Total ratings</p>
+                  <div className="flex flex-col-reverse">
+                    <dt className="text-sm text-subtle">Total ratings</dt>
+                    <dd className="font-display text-3xl font-bold text-white tabular-nums">{seasonStats.totalRatings}</dd>
                   </div>
                 )}
                 {driverStandings && (
-                  <div>
-                    <p className="font-display text-3xl font-bold text-white tabular-nums">{driverStandings.round}</p>
-                    <p className="text-xs text-subtle uppercase tracking-wide">Rounds</p>
+                  <div className="flex flex-col-reverse">
+                    <dt className="text-sm text-subtle">Rounds</dt>
+                    <dd className="font-display text-3xl font-bold text-white tabular-nums">{driverStandings.round}</dd>
                   </div>
                 )}
               </>
             )}
-          </div>
+          </dl>
         </div>
       </section>
 
@@ -177,16 +146,9 @@ export default function Saison() {
 
         {/* ── Standings tabs ── */}
         <section>
-          <div className="flex items-center gap-1 rounded-lg border border-line bg-card p-1 w-fit mb-6">
-            {[{ key: 'drivers', label: 'Drivers' }, { key: 'constructors', label: 'Constructors' }].map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-4 py-2 rounded text-sm font-medium transition-colors cursor-pointer ${tab === t.key ? 'bg-card-hover text-white' : 'text-subtle hover:text-muted'}`}
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-3 mb-4">
+            <h2 className="section-title">Standings</h2>
+            <Segmented label="Standings type" value={tab} onChange={setTab} options={[{ key: 'drivers', label: 'Drivers' }, { key: 'constructors', label: 'Constructors' }]} />
           </div>
 
           {/* Driver standings */}
@@ -213,7 +175,7 @@ export default function Saison() {
                           <img src={photo} alt={d.familyName} loading="lazy" className="w-full h-full object-cover object-top" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-[10px] font-bold text-subtle">{d.givenName?.[0]}{d.familyName?.[0]}</span>
+                            <span className="text-xs font-bold text-subtle">{d.givenName?.[0]}{d.familyName?.[0]}</span>
                           </div>
                         )}
                       </div>
@@ -227,13 +189,13 @@ export default function Saison() {
 
                       <div className="text-right shrink-0">
                         <p className="text-sm font-black text-white tabular-nums">{s.points}</p>
-                        <p className="text-[10px] text-subtle">pts</p>
+                        <p className="text-xs text-subtle">pts</p>
                       </div>
 
                       {parseInt(s.wins) > 0 && (
                         <div className="text-right shrink-0 w-10">
                           <p className="text-sm font-bold text-muted tabular-nums">{s.wins}</p>
-                          <p className="text-[10px] text-subtle">wins</p>
+                          <p className="text-xs text-subtle">wins</p>
                         </div>
                       )}
                     </div>
@@ -278,13 +240,13 @@ export default function Saison() {
 
                       <div className="text-right shrink-0">
                         <p className="text-sm font-black text-white tabular-nums">{s.points}</p>
-                        <p className="text-[10px] text-subtle">pts</p>
+                        <p className="text-xs text-subtle">pts</p>
                       </div>
 
                       {parseInt(s.wins) > 0 && (
                         <div className="text-right shrink-0 w-10">
                           <p className="text-sm font-bold text-muted tabular-nums">{s.wins}</p>
-                          <p className="text-[10px] text-subtle">wins</p>
+                          <p className="text-xs text-subtle">wins</p>
                         </div>
                       )}
                     </div>
@@ -300,7 +262,7 @@ export default function Saison() {
         {/* ── Top Rated Races ── */}
         {topRatedRaces.length > 0 && (
           <section>
-            <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-white mb-5">Top Rated Races</h2>
+            <h2 className="section-title border-b border-line pb-3 mb-4">Highest rated races</h2>
             <div className="rounded-lg border border-line overflow-hidden">
               {topRatedRaces.map((race, i) => (
                 <Link
@@ -316,8 +278,8 @@ export default function Saison() {
                     <p className="text-xs text-subtle">{race.country}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-black text-star tabular-nums">{race.avg}</p>
-                    <p className="text-[10px] text-subtle">{race.ratingCount} rating{race.ratingCount !== 1 ? 's' : ''}</p>
+                    <p className="text-sm font-bold text-white tabular-nums flex items-center justify-end gap-1"><Icon name="star" filled className="w-3.5 h-3.5 text-star" />{race.avg.toFixed(1)}</p>
+                    <p className="text-xs text-subtle">{race.ratingCount} rating{race.ratingCount !== 1 ? 's' : ''}</p>
                   </div>
                 </Link>
               ))}
@@ -325,15 +287,6 @@ export default function Saison() {
           </section>
         )}
 
-        {/* ── Link to races ── */}
-        <div className="flex items-center gap-4">
-          <Link
-            to={`/gps`}
-            className="text-sm text-muted hover:text-white transition-colors underline underline-offset-4"
-          >
-            Browse all {annee} races →
-          </Link>
-        </div>
 
       </div>
     </div>

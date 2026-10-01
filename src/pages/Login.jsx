@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  const { setProfile } = useAuth()
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
@@ -16,40 +18,34 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: form.email,
-      password: form.password,
-    })
-    if (authError) {
-      setError('Invalid email or password.')
-      setLoading(false)
-    } else {
+    try {
+      setProfile(await api('/auth/login', { method: 'POST', body: form }))
       navigate('/')
+    } catch (err) {
+      setError(err.message)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="flex min-h-[calc(100dvh-120px)] items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm space-y-8">
 
-        {/* Logo */}
-        <div className="text-center">
-          <Link to="/" className="text-xl font-black tracking-widest text-f1-red uppercase">
-            PITSTOPPD
+        <div>
+          <Link to="/" className="font-display text-xl font-bold tracking-[-0.03em] text-f1-red">
+            pitstoppd
           </Link>
-          <p className="mt-2 text-sm text-muted">Sign in to your account</p>
+          <h1 className="page-title mt-4">Welcome back</h1>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
+            <p role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>
           )}
 
-          <div className="space-y-1">
-            <label htmlFor="email" className="block text-xs font-medium text-muted">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="block text-sm font-medium text-muted">
               Email address
             </label>
             <input
@@ -61,12 +57,12 @@ export default function Login() {
               value={form.email}
               onChange={handleChange}
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-line bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-f1-red transition-colors"
+              className="field"
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="password" className="block text-xs font-medium text-muted">
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="block text-sm font-medium text-muted">
               Password
             </label>
             <input
@@ -77,15 +73,14 @@ export default function Login() {
               required
               value={form.password}
               onChange={handleChange}
-              placeholder="••••••••"
-              className="w-full rounded-lg border border-line bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-f1-red transition-colors"
+                            className="field"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-f1-red py-2.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="btn btn-primary w-full py-2.5"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>

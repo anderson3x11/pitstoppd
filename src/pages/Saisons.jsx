@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import Icon from '../components/Icon'
+import { Skeleton } from '../components/Skeleton'
+import { api } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import { getDriverStandings } from '../lib/f1api'
 import { getTeamColor } from '../lib/teamColors'
 import { getTeamPhoto } from '../lib/teamPhotos'
-import { TODAY, FIRST_SEASON } from '../lib/constants'
-import { computeAvgRating } from '../lib/ratingUtils'
+import { FIRST_SEASON } from '../lib/constants'
 import { getPageCache, setPageCache } from '../lib/pageCache'
 
 const CHAMPIONS = {
@@ -53,28 +54,10 @@ export default function Saisons() {
     }
 
     async function load() {
-      // Fetch race counts and avg ratings per season (parallel)
-      const [{ data: racesData }, { data: ratingsData }] = await Promise.all([
-        supabase.from('races').select('id, season').eq('race_type', 'race').lt('date', TODAY),
-        supabase.from('ratings').select('score, race_id'),
-      ])
+      const stats = await api('/seasons')
+      const statsByYear = Object.fromEntries(stats.map((st) => [st.year, st]))
 
-      const racesBySeason = {}
-      const raceIdToSeason = {}
-      for (const r of racesData ?? []) {
-        racesBySeason[r.season] = (racesBySeason[r.season] ?? 0) + 1
-        raceIdToSeason[r.id] = r.season
-      }
-
-      const scoresBySeason = {}
-      for (const r of ratingsData ?? []) {
-        const season = raceIdToSeason[r.race_id]
-        if (!season) continue
-        if (!scoresBySeason[season]) scoresBySeason[season] = []
-        scoresBySeason[season].push(r.score)
-      }
-
-      const maxSeason = Math.max(...Object.keys(racesBySeason).map(Number), FIRST_SEASON)
+      const maxSeason = Math.max(...stats.map((st) => st.year), FIRST_SEASON)
 
       // Fetch standings for seasons without a champion (current/in-progress) — parallel
       const leaders = {}
@@ -98,12 +81,11 @@ export default function Saisons() {
 
       const seasons = []
       for (let y = maxSeason; y >= FIRST_SEASON; y--) {
-        const scores = scoresBySeason[y] ?? []
         seasons.push({
           year: y,
-          raceCount: racesBySeason[y] ?? 0,
-          avgRating: computeAvgRating(scores),
-          ratingCount: scores.length,
+          raceCount: statsByYear[y]?.raceCount ?? 0,
+          avgRating: statsByYear[y]?.avgRating ?? null,
+          ratingCount: statsByYear[y]?.ratingCount ?? 0,
           champion: CHAMPIONS[y] ?? null,
           leader: leaders[y] ?? null,
         })
@@ -114,18 +96,20 @@ export default function Saisons() {
       setLoading(false)
     }
 
-    load()
+    load().catch(() => setLoading(false))
   }, [authLoading])
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-10">
-        <h1 className="font-display text-4xl font-black italic uppercase tracking-tight text-white">Seasons</h1>
-        <p className="text-sm text-muted mt-1">F1 from 2000 to present</p>
-      </div>
+      <header className="mb-8">
+        <h1 className="page-title">Seasons</h1>
+        <p className="text-muted mt-2">Every championship since 2000, with its champion and how fans rated it.</p>
+      </header>
 
       {loading ? (
-        <p className="text-muted text-sm">Loading…</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-40 rounded-lg" />)}
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {seasonsData.map((s) => {
@@ -137,7 +121,7 @@ export default function Saisons() {
               <Link
                 key={s.year}
                 to={`/saisons/${s.year}`}
-                className="group relative rounded-lg overflow-hidden bg-card border border-line transition-all duration-200 hover:border-subtle hover:scale-[1.01]"
+                className="group relative rounded-lg overflow-hidden bg-card border border-line transition-[border-color,transform] duration-200 ease-[var(--ease-out)] hover:border-line-strong hover:-translate-y-0.5"
               >
                 {/* Team color strip */}
                 {teamColor && (
@@ -153,22 +137,22 @@ export default function Saisons() {
                 <div className="relative px-5 py-4 space-y-2.5">
                   {/* Year */}
                   <div className="flex items-center gap-2">
-                    <span className="font-display text-4xl font-black text-white group-hover:text-f1-red transition-colors">{s.year}</span>
+                    <span className="font-display text-4xl font-bold text-white group-hover:text-f1-red transition-colors">{s.year}</span>
                     {!s.champion && (
-                      <span className="text-[10px] font-medium text-subtle border border-line rounded px-1.5 py-px">In progress</span>
+                      <span className="text-xs font-medium text-f1-red border border-f1-red/40 rounded-sm px-1.5 py-px">Live</span>
                     )}
                   </div>
 
                   {/* Champion / Leader */}
                   {featured ? (
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-subtle mb-1">
+                      <p className="text-xs text-subtle mb-0.5">
                         {s.champion ? 'Champion' : 'Leader'}
                       </p>
                       <p className="text-sm font-bold text-white leading-snug">
                         {featured.driver}
                         {s.leader && !s.champion && featured.points && (
-                          <span className="text-xs font-normal text-subtle ml-1.5">{featured.points} pts</span>
+                          <span className="text-xs font-normal text-subtle ml-1.5 tabular-nums">{featured.points} pts</span>
                         )}
                       </p>
                       <p className="text-xs font-medium mt-0.5" style={{ color: teamColor?.hex ?? '#a3a3a3' }}>
@@ -180,14 +164,14 @@ export default function Saisons() {
                   )}
 
                   {/* Stats */}
-                  <div className="flex items-center gap-3 text-[11px] text-subtle pt-0.5">
-                    <span>{s.raceCount} races</span>
+                  <div className="flex items-center gap-2 text-xs text-subtle pt-1 border-t border-line">
+                    <span className="pt-2">{s.raceCount} races</span>
                     {s.avgRating != null && (
-                      <>
-                        <span>·</span>
-                        <span className="text-star">★ {s.avgRating}</span>
-                        <span className="text-subtle">({s.ratingCount})</span>
-                      </>
+                      <span className="pt-2 ml-auto flex items-center gap-1 tabular-nums" aria-label={`Average rating ${s.avgRating} from ${s.ratingCount} ratings`}>
+                        <Icon name="star" filled className="w-3.5 h-3.5 text-star" />
+                        <span className="text-muted font-medium">{s.avgRating.toFixed(1)}</span>
+                        <span>({s.ratingCount})</span>
+                      </span>
                     )}
                   </div>
                 </div>

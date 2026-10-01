@@ -5,8 +5,8 @@
  *  value       : number   — note entre 0 et 5 (ex: 3.5)
  *  size        : 'sm' | 'md' | 'lg'  — taille des étoiles (défaut: 'md')
  *  showValue   : boolean  — afficher la note numérique à côté (défaut: false)
- *  interactive : boolean  — activer le mode saisie (défaut: false)
- *  onChange    : function — appelée avec la nouvelle valeur lors d'un clic
+ *  interactive : boolean  — activer le mode saisie (souris + flèches clavier)
+ *  onChange    : function — appelée avec la nouvelle valeur
  */
 
 import { useState } from 'react'
@@ -14,26 +14,17 @@ import { useState } from 'react'
 const STAR_PATH =
   'M12 2l2.582 5.632 6.118.89-4.427 4.313 1.045 6.09L12 15.902l-5.318 2.943 1.045-6.09L3.3 8.522l6.118-.89z'
 
-function StarDisplay({ fill, sizeClass }) {
+const SIZES = { sm: 'w-3.5 h-3.5', md: 'w-4 h-4', lg: 'w-8 h-8' }
+
+function Star({ fill, sizeClass }) {
   return (
     <span className={`relative inline-block leading-none shrink-0 ${sizeClass}`}>
-      {/* Étoile de fond (grise) */}
       <svg viewBox="0 0 24 24" className="w-full h-full" aria-hidden="true">
-        <path d={STAR_PATH} fill="#2a2a2a" />
+        <path d={STAR_PATH} fill="#333" />
       </svg>
-      {/* Étoile colorée — le SVG garde la taille de l'étoile complète,
-          la clip span le masque à droite selon fill */}
       {fill > 0 && (
-        <span
-          className="absolute top-0 left-0 overflow-hidden"
-          style={{ width: `${fill * 100}%`, height: '100%' }}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="absolute top-0 left-0"
-            style={{ width: `${100 / fill}%`, height: '100%' }}
-            aria-hidden="true"
-          >
+        <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+          <svg viewBox="0 0 24 24" className="h-full" style={{ width: `${100 / fill}%` }} aria-hidden="true">
             <path d={STAR_PATH} fill="var(--color-star)" />
           </svg>
         </span>
@@ -42,103 +33,57 @@ function StarDisplay({ fill, sizeClass }) {
   )
 }
 
-function StarInput({ index, displayValue, onHover, onClick, sizeClass }) {
-  const starNum = index + 1
-  const fill = displayValue >= starNum ? 1 : displayValue >= starNum - 0.5 ? 0.5 : 0
+const fillFor = (value, i) => (value >= i + 1 ? 1 : value >= i + 0.5 ? 0.5 : 0)
 
-  return (
-    <span className={`relative inline-block leading-none shrink-0 ${sizeClass} cursor-pointer`}>
-      {/* Moitié gauche → demi-étoile */}
-      <span
-        className="absolute inset-y-0 left-0 w-1/2 z-10"
-        onMouseEnter={() => onHover(starNum - 0.5)}
-        onClick={() => onClick(starNum - 0.5)}
-      />
-      {/* Moitié droite → étoile pleine */}
-      <span
-        className="absolute inset-y-0 right-0 w-1/2 z-10"
-        onMouseEnter={() => onHover(starNum)}
-        onClick={() => onClick(starNum)}
-      />
-      {/* Étoile de fond */}
-      <svg viewBox="0 0 24 24" className="w-full h-full" aria-hidden="true">
-        <path d={STAR_PATH} fill="#2a2a2a" />
-      </svg>
-      {/* Étoile colorée clippée */}
-      {fill > 0 && (
-        <span
-          className="absolute top-0 left-0 overflow-hidden"
-          style={{ width: `${fill * 100}%`, height: '100%' }}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="absolute top-0 left-0"
-            style={{ width: `${100 / fill}%`, height: '100%' }}
-            aria-hidden="true"
-          >
-            <path d={STAR_PATH} fill="var(--color-star)" />
-          </svg>
-        </span>
-      )}
-    </span>
-  )
-}
-
-export default function StarRating({
-  value = 0,
-  size = 'md',
-  showValue = false,
-  interactive = false,
-  onChange,
-}) {
+export default function StarRating({ value = 0, size = 'md', showValue = false, interactive = false, onChange }) {
   const [hoverValue, setHoverValue] = useState(null)
+  const sizeClass = SIZES[size] ?? SIZES.md
 
-  const sizeClass = { sm: 'w-3 h-3', md: 'w-4 h-4', lg: 'w-6 h-6' }[size] ?? 'w-4 h-4'
-  const displayValue = hoverValue ?? value
-
-  if (interactive) {
+  if (!interactive) {
     return (
-      <span
-        className="inline-flex items-center gap-0.5 select-none"
-        onMouseLeave={() => setHoverValue(null)}
-      >
-        <span className="flex gap-0.5">
-          {Array.from({ length: 5 }, (_, i) => (
-            <StarInput
-              key={i}
-              index={i}
-              displayValue={displayValue}
-              onHover={setHoverValue}
-              onClick={(v) => onChange?.(v)}
-              sizeClass={sizeClass}
-            />
-          ))}
+      <span className="inline-flex items-center gap-1" role="img" aria-label={`${value} out of 5 stars`}>
+        <span className="flex gap-px">
+          {[0, 1, 2, 3, 4].map((i) => <Star key={i} fill={fillFor(value, i)} sizeClass={sizeClass} />)}
         </span>
-        {showValue && (
-          <span className="ml-1 text-xs text-muted tabular-nums">
-            {displayValue > 0 ? displayValue.toFixed(1) : '—'}
-          </span>
-        )}
+        {showValue && <span className="text-xs font-medium text-muted tabular-nums">{value.toFixed(1)}</span>}
       </span>
     )
   }
 
-  const stars = Array.from({ length: 5 }, (_, i) => {
-    const v = i + 1
-    if (value >= v) return 1
-    if (value >= v - 0.5) return 0.5
-    return 0
-  })
+  const displayValue = hoverValue ?? value
+
+  const onKeyDown = (e) => {
+    const step = { ArrowRight: 0.5, ArrowUp: 0.5, ArrowLeft: -0.5, ArrowDown: -0.5 }[e.key]
+    if (step === undefined) return
+    e.preventDefault()
+    onChange?.(Math.min(5, Math.max(0.5, (value || 0) + step)))
+  }
 
   return (
-    <span className="inline-flex items-center gap-0.5">
-      <span className="flex gap-0.5">
-        {stars.map((fill, i) => (
-          <StarDisplay key={i} fill={fill} sizeClass={sizeClass} />
-        ))}
-      </span>
+    <span
+      role="slider"
+      tabIndex={0}
+      aria-label="Your rating"
+      aria-valuemin={0.5}
+      aria-valuemax={5}
+      aria-valuenow={value || undefined}
+      aria-valuetext={value ? `${value} out of 5 stars` : 'Not rated'}
+      onKeyDown={onKeyDown}
+      onMouseLeave={() => setHoverValue(null)}
+      className="inline-flex items-center gap-1 select-none rounded-md"
+    >
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span key={i} className="relative cursor-pointer transition-transform duration-100 active:scale-90">
+          {/* moitié gauche = demi-étoile, moitié droite = étoile pleine */}
+          <span className="absolute inset-y-0 left-0 w-1/2 z-10" onMouseEnter={() => setHoverValue(i + 0.5)} onClick={() => onChange?.(i + 0.5)} />
+          <span className="absolute inset-y-0 right-0 w-1/2 z-10" onMouseEnter={() => setHoverValue(i + 1)} onClick={() => onChange?.(i + 1)} />
+          <Star fill={fillFor(displayValue, i)} sizeClass={sizeClass} />
+        </span>
+      ))}
       {showValue && (
-        <span className="ml-1 text-xs text-muted tabular-nums">{value.toFixed(1)}</span>
+        <span className="ml-1 text-sm font-medium text-muted tabular-nums w-7">
+          {displayValue > 0 ? displayValue.toFixed(1) : ''}
+        </span>
       )}
     </span>
   )

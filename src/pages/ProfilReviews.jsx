@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import ReviewCard from '../components/ReviewCard'
-import { supabase } from '../lib/supabase'
+import Segmented from '../components/Segmented'
+import { PageSkeleton, EmptyState } from '../components/PageState'
+import { api } from '../lib/api'
 
 export default function ProfilReviews() {
   const { username } = useParams()
@@ -18,123 +20,51 @@ export default function ProfilReviews() {
     setNotFound(false)
 
     async function load() {
-      const { data: profilData } = await supabase
-        .from('profiles')
-        .select('id, username')
-        .eq('username', username)
-        .maybeSingle()
-
-      if (!profilData) {
-        setNotFound(true)
-        setLoading(false)
-        return
-      }
-
-      const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('id, content, spoiler, created_at, race_id, races(id, name, season, slug), likes(count)')
-        .eq('user_id', profilData.id)
-        .order('created_at', { ascending: false })
-
-      if (!reviewsData?.length) {
-        setLoading(false)
-        return
-      }
-
-      const raceIds = reviewsData.map((r) => r.race_id).filter(Boolean)
-      const { data: ratingsData } = await supabase
-        .from('ratings')
-        .select('race_id, score')
-        .eq('user_id', profilData.id)
-        .in('race_id', raceIds)
-      const ratingMap = {}
-      for (const r of ratingsData ?? []) ratingMap[r.race_id] = r.score
-
-      const mapped = reviewsData.map((r) => ({
-        id: r.id,
-        content: r.content,
-        spoiler: r.spoiler,
-        created_at: r.created_at,
-        raceName: r.races?.name,
-        raceSeason: r.races?.season,
-        raceSlug: r.races?.slug,
-        rating: ratingMap[r.race_id] ?? null,
-        likeCount: r.likes?.[0]?.count ?? 0,
-      }))
-
-      setReviews(mapped)
+      const { profil, reviews: list } = await api(`/users/${username}`)
+      if (!profil) setNotFound(true)
+      else setReviews(list)
       setLoading(false)
     }
 
-    load()
+    load().catch(() => setLoading(false))
   }, [username])
 
   const sorted = sort === 'likes'
     ? [...reviews].sort((a, b) => b.likeCount - a.likeCount)
     : reviews
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-muted text-sm">Loading…</p>
-      </div>
-    )
-  }
-
-  if (notFound) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-muted text-sm">User not found.</p>
-      </div>
-    )
-  }
+  if (loading) return <PageSkeleton />
+  if (notFound) return <EmptyState page title="User not found" action="Back to home">No Pitstoppd member uses this username.</EmptyState>
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 space-y-8">
-
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-subtle">
+    <div className="mx-auto max-w-3xl px-4 py-10">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-subtle mb-3">
         <Link to={`/${username}`} className="hover:text-white transition-colors">@{username}</Link>
-        <span>/</span>
+        <span aria-hidden="true">/</span>
         <span className="text-muted">Reviews</span>
-      </div>
+      </nav>
 
-      {/* Header + sort toggle */}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-display text-4xl font-black italic uppercase tracking-tight text-white">
-          Reviews <span className="text-subtle font-normal text-lg">({reviews.length})</span>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-4">
+        <h1 className="page-title">
+          Reviews <span className="font-sans text-xl font-normal not-italic normal-case text-subtle tabular-nums">{reviews.length}</span>
         </h1>
-        <div className="flex items-center gap-1 rounded-lg border border-line bg-card p-1">
-          <button
-            onClick={() => setSearchParams({})}
-            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors cursor-pointer ${
-              sort === 'date' ? 'bg-card-hover text-white' : 'text-subtle hover:text-muted'
-            }`}
-          >
-            Latest
-          </button>
-          <button
-            onClick={() => setSearchParams({ sort: 'likes' })}
-            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors cursor-pointer ${
-              sort === 'likes' ? 'bg-card-hover text-white' : 'text-subtle hover:text-muted'
-            }`}
-          >
-            Most liked
-          </button>
-        </div>
+        {reviews.length > 1 && (
+          <Segmented
+            label="Sort reviews"
+            value={sort}
+            onChange={(key) => setSearchParams(key === 'likes' ? { sort: 'likes' } : {})}
+            options={[{ key: 'date', label: 'Recent' }, { key: 'likes', label: 'Most liked' }]}
+          />
+        )}
       </div>
 
-      {/* Reviews list */}
       {sorted.length > 0 ? (
-        <div className="space-y-3">
-          {sorted.map((review) => (
-            <ReviewCard key={review.id} review={review} />
-          ))}
-        </div>
+        <div>{sorted.map((review) => <ReviewCard key={review.id} review={review} />)}</div>
       ) : (
-        <p className="text-sm text-subtle">No reviews yet.</p>
+        <div className="mt-6">
+          <EmptyState title="No reviews yet">@{username} hasn't reviewed a race yet.</EmptyState>
+        </div>
       )}
-
     </div>
   )
 }

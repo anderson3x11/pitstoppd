@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
+import Icon from '../components/Icon'
+import { PageSkeleton, EmptyState } from '../components/PageState'
 
 const F1_TEAMS = [
   'Alpine',
@@ -17,13 +19,17 @@ const F1_TEAMS = [
   'Williams',
 ]
 
-const inputClass =
-  'w-full rounded-lg border border-line bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-f1-red transition-colors'
+const inputClass = 'field'
+const selectClass = 'field appearance-none cursor-pointer pr-9'
+const labelClass = 'block text-sm font-medium text-muted mb-1.5'
+const sectionTitle = 'font-display text-xl font-bold uppercase tracking-wide text-white border-b border-line pb-2'
 
-const selectClass =
-  'w-full rounded-lg border border-line bg-card-hover px-3 py-2.5 text-sm text-white focus:outline-none focus:border-f1-red transition-colors appearance-none cursor-pointer'
+function Notice({ kind, children }) {
+  const tone = kind === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+  return <p role={kind === 'error' ? 'alert' : 'status'} className={`rounded-md border px-4 py-3 text-sm ${tone}`}>{children}</p>
+}
 
-function DriverSearchInput({ value, onChange, exclude, drivers }) {
+function DriverSearchInput({ id, value, onChange, exclude, drivers }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -48,16 +54,15 @@ function DriverSearchInput({ value, onChange, exclude, drivers }) {
 
   if (selected) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-line bg-card-hover px-3 py-2.5">
-        <span className="text-sm text-white flex-1">{selected.given_name} {selected.family_name}</span>
+      <div className="flex items-center gap-2 rounded-md border border-line-strong bg-card px-3 py-2.5">
+        <span id={id} className="text-sm text-white flex-1">{selected.given_name} {selected.family_name}</span>
         <button
           type="button"
           onClick={() => { onChange(''); setQuery('') }}
+          aria-label={`Remove ${selected.family_name}`}
           className="text-subtle hover:text-white transition-colors cursor-pointer"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <Icon name="x" className="w-4 h-4" />
         </button>
       </div>
     )
@@ -66,7 +71,9 @@ function DriverSearchInput({ value, onChange, exclude, drivers }) {
   return (
     <div ref={ref} className="relative">
       <input
+        id={id}
         type="text"
+        autoComplete="off"
         value={query}
         onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
@@ -74,14 +81,14 @@ function DriverSearchInput({ value, onChange, exclude, drivers }) {
         className={inputClass}
       />
       {open && filtered.length > 0 && (
-        <div className="absolute z-20 top-full mt-1 w-full rounded-lg border border-line bg-card shadow-xl overflow-hidden">
+        <div className="absolute z-20 top-full mt-1 w-full rounded-md border border-line-strong bg-card p-1 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.7)]">
           {filtered.map((d) => (
             <button
               key={d.id}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => { onChange(d.id); setQuery(''); setOpen(false) }}
-              className="w-full text-left px-3 py-2.5 text-sm text-muted hover:bg-card-hover hover:text-white transition-colors cursor-pointer"
+              className="w-full text-left px-3 py-2 rounded text-sm text-muted hover:bg-card-hover hover:text-white transition-colors cursor-pointer"
             >
               {d.given_name} {d.family_name}
             </button>
@@ -89,8 +96,8 @@ function DriverSearchInput({ value, onChange, exclude, drivers }) {
         </div>
       )}
       {open && query && filtered.length === 0 && (
-        <div className="absolute z-20 top-full mt-1 w-full rounded-lg border border-line bg-card px-3 py-2.5">
-          <p className="text-sm text-subtle">No results for "{query}"</p>
+        <div className="absolute z-20 top-full mt-1 w-full rounded-md border border-line-strong bg-card px-3 py-2.5">
+          <p className="text-sm text-subtle">No driver named “{query}”</p>
         </div>
       )}
     </div>
@@ -124,11 +131,9 @@ export default function Settings() {
   const [showDelete, setShowDelete] = useState(false)
 
   useEffect(() => {
-    supabase
-      .from('drivers')
-      .select('id, given_name, family_name')
-      .order('family_name')
-      .then(({ data }) => setDrivers(data ?? []))
+    api('/drivers')
+      .then(({ drivers: list }) => setDrivers(list.sort((a, b) => a.family_name.localeCompare(b.family_name))))
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -144,30 +149,9 @@ export default function Settings() {
     }
   }, [profile])
 
-  if (authLoading) {
-    return (
-      <div className="flex min-h-[calc(100vh-56px)] items-center justify-center">
-        <p className="text-muted text-sm">Loading…</p>
-      </div>
-    )
-  }
+  if (authLoading) return <PageSkeleton />
 
-  if (!user) {
-    return (
-      <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4">
-        <div className="text-center space-y-3">
-          <p className="text-white font-semibold">Restricted Access</p>
-          <p className="text-sm text-muted">You must be signed in to access settings.</p>
-          <Link
-            to="/login"
-            className="inline-block mt-2 rounded bg-f1-red px-4 py-2 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-      </div>
-    )
-  }
+  if (!user) return <EmptyState page title="Sign in to edit your profile" action="Sign in" to="/login">Settings are only available to signed-in members.</EmptyState>
 
   // ── Profile form handlers ──
 
@@ -179,6 +163,11 @@ export default function Settings() {
   const handleAvatarChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image must be under 2 MB.')
+      return
+    }
+    setError(null)
     setAvatarFile(file)
     setAvatarPreview(URL.createObjectURL(file))
     setSuccess(false)
@@ -190,42 +179,26 @@ export default function Settings() {
     setError(null)
     setSuccess(false)
 
-    let avatarUrl = profile?.avatar_url ?? null
-
-    if (avatarFile) {
-      const ext = avatarFile.name.split('.').pop()
-      const path = `${user.id}/avatar.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(path, avatarFile, { upsert: true })
-      if (uploadError) {
-        setError('Error uploading avatar.')
-        setSaving(false)
-        return
+    try {
+      if (avatarFile) {
+        const body = new FormData()
+        body.append('file', avatarFile)
+        await api('/me/avatar', { method: 'POST', body })
       }
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
-      avatarUrl = urlData.publicUrl
-    }
-
-    const topPilots = [form.pilot1, form.pilot2, form.pilot3].filter(Boolean)
-
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        display_name: form.displayName,
-        bio: form.bio || null,
-        favorite_team: form.favoriteTeam || null,
-        top_pilots: topPilots.length > 0 ? topPilots : null,
-        avatar_url: avatarUrl,
+      await api('/me', {
+        method: 'PATCH',
+        body: {
+          display_name: form.displayName,
+          bio: form.bio,
+          favorite_team: form.favoriteTeam,
+          top_pilots: [form.pilot1, form.pilot2, form.pilot3].filter(Boolean),
+        },
       })
-      .eq('id', user.id)
-
-    if (updateError) {
-      setError('Error updating profile.')
-    } else {
       setSuccess(true)
       setAvatarFile(null)
       await refreshProfile()
+    } catch (err) {
+      setError(err.message)
     }
     setSaving(false)
   }
@@ -237,8 +210,8 @@ export default function Settings() {
     setPwError(null)
     setPwSuccess(false)
 
-    if (pwForm.newPassword.length < 6) {
-      setPwError('Password must be at least 6 characters.')
+    if (pwForm.newPassword.length < 8) {
+      setPwError('Password must be at least 8 characters.')
       return
     }
     if (pwForm.newPassword !== pwForm.confirmPassword) {
@@ -247,12 +220,12 @@ export default function Settings() {
     }
 
     setPwSaving(true)
-    const { error } = await supabase.auth.updateUser({ password: pwForm.newPassword })
-    if (error) {
-      setPwError(error.message)
-    } else {
+    try {
+      await api('/me/password', { method: 'PUT', body: { password: pwForm.newPassword } })
       setPwSuccess(true)
       setPwForm({ newPassword: '', confirmPassword: '' })
+    } catch (err) {
+      setPwError(err.message)
     }
     setPwSaving(false)
   }
@@ -265,22 +238,8 @@ export default function Settings() {
     setDeleteError(null)
 
     try {
-      await Promise.all([
-        supabase.from('likes').delete().eq('user_id', user.id),
-        supabase.from('ratings').delete().eq('user_id', user.id),
-        supabase.from('follows').delete().eq('follower_id', user.id),
-        supabase.from('follows').delete().eq('following_id', user.id),
-      ])
-      await supabase.from('reviews').delete().eq('user_id', user.id)
-      await supabase.from('profiles').delete().eq('id', user.id)
-
-      // Requires a Supabase SQL function: CREATE OR REPLACE FUNCTION delete_user()
-      // RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$ BEGIN
-      //   DELETE FROM auth.users WHERE id = auth.uid();
-      // END; $$;
-      await supabase.rpc('delete_user')
-
-      await supabase.auth.signOut()
+      await api('/me', { method: 'DELETE' })
+      await refreshProfile()
       navigate('/')
     } catch {
       setDeleteError('An error occurred. Please try again.')
@@ -293,32 +252,22 @@ export default function Settings() {
     ['pilot1', 'pilot2', 'pilot3'].filter((k) => k !== key).map((k) => form[k]).filter(Boolean)
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10 space-y-12">
-      <h1 className="text-2xl font-black text-white">Profile Settings</h1>
+    <div className="mx-auto max-w-2xl px-4 py-10 space-y-14">
+      <h1 className="page-title">Settings</h1>
 
       {/* ── Section: Profile ── */}
       <form onSubmit={handleSubmit} className="space-y-8">
 
-        {error && (
-          <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3">
-            <p className="text-sm text-red-400">{error}</p>
-          </div>
-        )}
-        {success && (
-          <div className="rounded-lg border border-green-900/50 bg-green-950/30 px-4 py-3">
-            <p className="text-sm text-green-400">Changes saved.</p>
-          </div>
-        )}
+        {error && <Notice kind="error">{error}</Notice>}
+        {success && <Notice>Profile saved.</Notice>}
 
         <section className="space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-subtle border-b border-line pb-2">
-            General Information
-          </h2>
+          <h2 className={sectionTitle}>Profile</h2>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-2">Profile Picture</label>
+            <p className={labelClass}>Profile picture</p>
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-card-hover border border-line flex items-center justify-center overflow-hidden">
+              <div className="w-16 h-16 shrink-0 rounded-full bg-raised ring-1 ring-line-strong flex items-center justify-center overflow-hidden">
                 {avatarPreview || profile?.avatar_url ? (
                   <img src={avatarPreview || profile?.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -330,22 +279,25 @@ export default function Settings() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-sm font-medium text-muted border border-line rounded px-3 py-1.5 hover:text-white hover:border-subtle transition-colors cursor-pointer"
+                className="btn btn-secondary btn-sm"
               >
                 Change photo
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+              <span className="text-xs text-subtle">PNG, JPEG, WebP or GIF, 2 MB max</span>
+              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleAvatarChange} className="hidden" />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-muted">Display Name</label>
-            <input name="displayName" type="text" value={form.displayName} onChange={handleChange} className={inputClass} />
+            <label htmlFor="displayName" className={labelClass}>Display name</label>
+            <input id="displayName" name="displayName" type="text" required maxLength={50} value={form.displayName} onChange={handleChange} className={inputClass} />
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-muted">Bio</label>
+            <label htmlFor="bio" className={labelClass}>Bio</label>
             <textarea
+              id="bio"
+              maxLength={500}
               name="bio"
               value={form.bio}
               onChange={handleChange}
@@ -357,33 +309,30 @@ export default function Settings() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-subtle border-b border-line pb-2">
-            F1 Favorites
-          </h2>
+          <h2 className={sectionTitle}>Favorites</h2>
 
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-muted">Favorite Team</label>
+            <label htmlFor="favoriteTeam" className={labelClass}>Favorite team</label>
             <div className="relative">
-              <select name="favoriteTeam" value={form.favoriteTeam} onChange={handleChange} className={selectClass}>
-                <option value="">— Select a team —</option>
+              <select id="favoriteTeam" name="favoriteTeam" value={form.favoriteTeam} onChange={handleChange} className={selectClass}>
+                <option value="">No favorite team</option>
                 {F1_TEAMS.map((team) => (
                   <option key={team} value={team}>{team}</option>
                 ))}
               </select>
-              <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+              <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted mb-2">Top 3 Drivers</label>
+            <p className={labelClass}>Top 3 drivers</p>
             <div className="space-y-2">
               {(['pilot1', 'pilot2', 'pilot3']).map((key, i) => (
                 <div key={key} className="flex items-center gap-3">
-                  <span className="text-xs font-black text-f1-red w-4">{i + 1}</span>
+                  <label htmlFor={`driver-${key}`} className="font-display text-lg font-bold text-f1-red w-4">{i + 1}<span className="sr-only">. favorite driver</span></label>
                   <div className="flex-1">
                     <DriverSearchInput
+                      id={`driver-${key}`}
                       value={form[key]}
                       onChange={(val) => { setForm((prev) => ({ ...prev, [key]: val })); setSuccess(false) }}
                       exclude={excludeFor(key)}
@@ -400,13 +349,13 @@ export default function Settings() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-f1-red px-5 py-2.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            className="btn btn-primary"
           >
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? 'Saving…' : 'Save profile'}
           </button>
           {profile && (
-            <Link to={`/${profile.username}`} className="text-sm text-muted hover:text-white transition-colors">
-              Cancel
+            <Link to={`/${profile.username}`} className="btn btn-secondary">
+              View profile
             </Link>
           )}
         </div>
@@ -414,36 +363,30 @@ export default function Settings() {
 
       {/* ── Section: Security ── */}
       <form onSubmit={handlePasswordSubmit} className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-subtle border-b border-line pb-2">
-          Security
-        </h2>
+        <h2 className={sectionTitle}>Password</h2>
 
-        {pwError && (
-          <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3">
-            <p className="text-sm text-red-400">{pwError}</p>
-          </div>
-        )}
-        {pwSuccess && (
-          <div className="rounded-lg border border-green-900/50 bg-green-950/30 px-4 py-3">
-            <p className="text-sm text-green-400">Password updated.</p>
-          </div>
-        )}
+        {pwError && <Notice kind="error">{pwError}</Notice>}
+        {pwSuccess && <Notice>Password updated.</Notice>}
 
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-muted">New Password</label>
+          <label htmlFor="newPassword" className={labelClass}>New password</label>
           <input
+            id="newPassword"
             type="password"
+            autoComplete="new-password"
             value={pwForm.newPassword}
             onChange={(e) => { setPwForm((p) => ({ ...p, newPassword: e.target.value })); setPwSuccess(false) }}
-            placeholder="Min. 6 characters"
+            placeholder="8 characters minimum"
             className={inputClass}
           />
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-muted">Confirm Password</label>
+          <label htmlFor="confirmPassword" className={labelClass}>Confirm new password</label>
           <input
+            id="confirmPassword"
             type="password"
+            autoComplete="new-password"
             value={pwForm.confirmPassword}
             onChange={(e) => { setPwForm((p) => ({ ...p, confirmPassword: e.target.value })); setPwSuccess(false) }}
             placeholder="Repeat new password"
@@ -454,7 +397,7 @@ export default function Settings() {
         <button
           type="submit"
           disabled={pwSaving || !pwForm.newPassword}
-          className="rounded-lg bg-card-hover border border-line px-5 py-2.5 text-sm font-semibold text-white hover:border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="btn btn-secondary"
         >
           {pwSaving ? 'Updating…' : 'Update password'}
         </button>
@@ -462,43 +405,39 @@ export default function Settings() {
 
       {/* ── Section: Danger Zone ── */}
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-red-500 border-b border-red-900/40 pb-2">
-          Danger Zone
-        </h2>
+        <h2 className={`${sectionTitle} text-red-400! border-red-500/30!`}>Delete account</h2>
 
         {!showDelete ? (
-          <div className="rounded-lg border border-line bg-card p-5 flex items-center justify-between gap-4">
+          <div className="rounded-lg border border-line bg-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-white">Delete account</p>
-              <p className="text-xs text-subtle mt-0.5">Permanently delete your account and all your data. This cannot be undone.</p>
+              <p className="text-sm text-subtle mt-0.5">Removes your profile, ratings, reviews, likes and follows. This cannot be undone.</p>
             </div>
             <button
               type="button"
               onClick={() => setShowDelete(true)}
-              className="shrink-0 rounded-lg border border-red-900/60 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
+              className="btn btn-sm shrink-0 border border-red-500/40 text-red-400 hover:bg-red-500/10"
             >
               Delete account
             </button>
           </div>
         ) : (
-          <div className="rounded-lg border border-red-900/60 bg-red-950/10 p-5 space-y-4">
+          <div className="rounded-lg border border-red-500/40 bg-red-500/5 p-5 space-y-4">
             <p className="text-sm text-white font-semibold">Are you sure?</p>
-            <p className="text-xs text-subtle leading-relaxed">
+            <p className="text-sm text-muted leading-relaxed">
               This will permanently delete your reviews, ratings, follows and your account. Type <span className="font-mono text-red-400">DELETE</span> to confirm.
             </p>
 
-            {deleteError && (
-              <div className="rounded border border-red-900/50 bg-red-950/30 px-3 py-2">
-                <p className="text-xs text-red-400">{deleteError}</p>
-              </div>
-            )}
+            {deleteError && <Notice kind="error">{deleteError}</Notice>}
 
             <input
               type="text"
+              aria-label="Type DELETE to confirm"
+              autoComplete="off"
               value={deleteInput}
               onChange={(e) => setDeleteInput(e.target.value)}
               placeholder="Type DELETE"
-              className="w-full rounded-lg border border-red-900/40 bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-red-600 transition-colors font-mono"
+              className="field font-mono focus:border-red-500!"
             />
 
             <div className="flex items-center gap-3">
@@ -506,14 +445,14 @@ export default function Settings() {
                 type="button"
                 onClick={handleDeleteAccount}
                 disabled={deleteInput !== 'DELETE' || deleteLoading}
-                className="rounded-lg bg-red-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="btn bg-red-600 text-white hover:bg-red-500"
               >
                 {deleteLoading ? 'Deleting…' : 'Delete my account'}
               </button>
               <button
                 type="button"
                 onClick={() => { setShowDelete(false); setDeleteInput(''); setDeleteError(null) }}
-                className="text-sm text-muted hover:text-white transition-colors cursor-pointer"
+                className="btn btn-secondary"
               >
                 Cancel
               </button>

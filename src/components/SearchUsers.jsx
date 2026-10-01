@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import Icon from "./Icon";
 
 export default function SearchUsers({ onOpenChange }) {
   const [open, setOpen] = useState(false);
@@ -8,92 +9,67 @@ export default function SearchUsers({ onOpenChange }) {
   const containerRef = useRef(null);
   const navigate = useNavigate();
 
-  const close = () => {
+  const close = useCallback(() => {
     setOpen(false);
     setQuery("");
     onOpenChange?.(false);
-  };
+  }, [onOpenChange]);
 
   const openSearch = () => {
     setOpen(true);
     onOpenChange?.(true);
   };
 
-  const submit = () => {
+  const submit = (e) => {
+    e.preventDefault();
     const term = query.trim();
     if (!term) return;
     close();
     navigate(`/search?q=${encodeURIComponent(term)}`);
   };
 
-  // Focus input when opening
-  useEffect(() => {
-    if (open) {
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
-  }, [open]);
-
-  // Close on click outside
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        close();
-      }
+    inputRef.current?.focus();
+    const onClick = (e) => { if (!containerRef.current?.contains(e.target)) close(); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open]);
+  }, [open, close]);
 
   if (!open) {
     return (
       <button
         onClick={openSearch}
-        className="p-1.5 text-muted hover:text-white transition-colors cursor-pointer"
-        aria-label="Rechercher des utilisateurs"
+        className="p-2 rounded-md text-muted hover:text-white hover:bg-card-hover transition-colors cursor-pointer"
+        aria-label="Search users"
       >
-        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-        </svg>
+        <Icon name="search" className="w-[18px] h-[18px]" />
       </button>
     );
   }
 
   return (
-    <div ref={containerRef} className="relative w-64">
-      <div className="flex items-center gap-2 rounded-lg border border-line bg-page px-3 py-1.5">
-        <svg className="w-4 h-4 text-subtle shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-        </svg>
+    <form ref={containerRef} onSubmit={submit} role="search" className="w-52 sm:w-64 animate-[fade-in_150ms_ease]">
+      <label className="flex items-center gap-2 rounded-md border border-line-strong bg-card px-3 py-1.5 focus-within:border-f1-red transition-colors">
+        <Icon name="search" className="w-4 h-4 text-subtle" />
         <input
           ref={inputRef}
-          type="text"
+          type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="bg-transparent text-sm text-white outline-none w-full"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") submit();
-          }}
+          placeholder="Search users…"
+          aria-label="Search users"
+          className="bg-transparent text-sm text-white placeholder:text-subtle outline-none w-full [&::-webkit-search-cancel-button]:hidden"
         />
-        <button
-          onClick={close}
-          className="text-subtle hover:text-white transition-colors cursor-pointer shrink-0"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+        <button type="button" onClick={close} aria-label="Close search" className="text-subtle hover:text-white transition-colors cursor-pointer">
+          <Icon name="x" className="w-4 h-4" />
         </button>
-      </div>
-    </div>
+      </label>
+    </form>
   );
 }

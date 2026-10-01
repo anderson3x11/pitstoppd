@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
+import { useAuth } from '../hooks/useAuth'
 
 // Username regex: 3-20 chars, lowercase, digits, hyphen, underscore
 const USERNAME_REGEX = /^[a-z0-9_-]{3,20}$/
@@ -15,8 +16,8 @@ export default function Register() {
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
-  const [confirmationSent, setConfirmationSent] = useState(false)
   const navigate = useNavigate()
+  const { setProfile } = useAuth()
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -46,112 +47,60 @@ export default function Register() {
     setLoading(true)
     setErrors({})
 
-    // Check username uniqueness
-    const { data: existing } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', form.username)
-      .maybeSingle()
-
-    if (existing) {
-      setErrors({ username: 'This username is already taken.' })
-      setLoading(false)
-      return
-    }
-
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: {
-          username: form.username,
-          display_name: form.displayName,
-        },
-      },
-    })
-
-    if (signUpError) {
-      setErrors({ global: signUpError.message })
-      setLoading(false)
-      return
-    }
-
-    if (data.session) {
-      // Email confirmation disabled — immediate session
-      // Upsert profile in case trigger doesn't include username/display_name
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        username: form.username,
-        display_name: form.displayName,
-      })
+    try {
+      setProfile(await api('/auth/register', {
+        method: 'POST',
+        body: { email: form.email, username: form.username, display_name: form.displayName, password: form.password },
+      }))
       navigate('/')
-    } else {
-      // Email confirmation required
-      setConfirmationSent(true)
+    } catch (err) {
+      setErrors({ [err.field ?? 'global']: err.message })
       setLoading(false)
     }
   }
 
-  const inputClass = (field) =>
-    `w-full rounded-lg border ${
-      errors[field] ? 'border-red-700' : 'border-line'
-    } bg-card-hover px-3 py-2.5 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-f1-red transition-colors`
-
-  if (confirmationSent) {
-    return (
-      <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm text-center space-y-4">
-          <p className="text-xl font-black text-f1-red">PITSTOPPD</p>
-          <p className="text-white font-semibold">Check your email</p>
-          <p className="text-sm text-muted">
-            A confirmation link has been sent to <span className="text-white">{form.email}</span>.
-            Click the link to activate your account.
-          </p>
-          <Link to="/login" className="inline-block text-sm font-medium text-muted hover:text-white transition-colors">
-            Back to sign in
-          </Link>
-        </div>
-      </div>
-    )
-  }
+  // aria-invalid colore le champ en rouge (classe .field) et l'annonce aux lecteurs d'écran
+  const fieldProps = (field) => ({
+    className: 'field',
+    'aria-invalid': errors[field] ? true : undefined,
+    'aria-describedby': errors[field] ? `${field}-error` : undefined,
+  })
 
   return (
-    <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="flex min-h-[calc(100dvh-120px)] items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm space-y-8">
 
-        <div className="text-center">
-          <Link to="/" className="text-xl font-black tracking-widest text-f1-red uppercase">
-            PITSTOPPD
+        <div>
+          <Link to="/" className="font-display text-xl font-bold tracking-[-0.03em] text-f1-red">
+            pitstoppd
           </Link>
-          <p className="mt-2 text-sm text-muted">Create your account</p>
+          <h1 className="page-title mt-4">Create your account</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {errors.global && (
-            <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3">
-              <p className="text-sm text-red-400">{errors.global}</p>
-            </div>
+            <p role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{errors.global}</p>
           )}
 
           {/* Email */}
-          <div className="space-y-1">
-            <label htmlFor="email" className="block text-xs font-medium text-muted">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="block text-sm font-medium text-muted">
               Email address
             </label>
             <input
               id="email" name="email" type="email" autoComplete="email" required
               value={form.email} onChange={handleChange}
               placeholder="you@example.com"
-              className={inputClass('email')}
+              {...fieldProps('email')}
             />
-            {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
+            {errors.email && <p id="email-error" className="text-sm text-red-400">{errors.email}</p>}
           </div>
 
           {/* Username */}
-          <div className="space-y-1">
-            <label htmlFor="username" className="block text-xs font-medium text-muted">
+          <div className="space-y-1.5">
+            <label htmlFor="username" className="block text-sm font-medium text-muted">
               Username
-              <span className="ml-1 text-subtle font-normal">(unique, used in URL)</span>
+              <span className="ml-1 text-subtle font-normal">· your profile address</span>
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle text-sm">@</span>
@@ -159,61 +108,60 @@ export default function Register() {
                 id="username" name="username" type="text" autoComplete="username" required
                 value={form.username} onChange={handleChange}
                 placeholder="max_verstappen"
-                className={`${inputClass('username')} pl-7`}
+                {...fieldProps('username')} className="field pl-7"
               />
             </div>
-            {errors.username && <p className="text-xs text-red-400">{errors.username}</p>}
+            {errors.username && <p id="username-error" className="text-sm text-red-400">{errors.username}</p>}
           </div>
 
           {/* Display Name */}
-          <div className="space-y-1">
-            <label htmlFor="displayName" className="block text-xs font-medium text-muted">
-              Display Name
-              <span className="ml-1 text-subtle font-normal">(not unique)</span>
+          <div className="space-y-1.5">
+            <label htmlFor="displayName" className="block text-sm font-medium text-muted">
+              Display name
+              <span className="ml-1 text-subtle font-normal">· shown on your reviews</span>
             </label>
             <input
               id="displayName" name="displayName" type="text" required
               value={form.displayName} onChange={handleChange}
               placeholder="Max"
-              className={inputClass('displayName')}
+              {...fieldProps('displayName')}
             />
-            {errors.displayName && <p className="text-xs text-red-400">{errors.displayName}</p>}
+            {errors.displayName && <p id="displayName-error" className="text-sm text-red-400">{errors.displayName}</p>}
           </div>
 
           {/* Password */}
-          <div className="space-y-1">
-            <label htmlFor="password" className="block text-xs font-medium text-muted">
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="block text-sm font-medium text-muted">
               Password
             </label>
             <input
               id="password" name="password" type="password" autoComplete="new-password" required
               value={form.password} onChange={handleChange}
               placeholder="8 characters minimum"
-              className={inputClass('password')}
+              {...fieldProps('password')}
             />
-            {errors.password && <p className="text-xs text-red-400">{errors.password}</p>}
+            {errors.password && <p id="password-error" className="text-sm text-red-400">{errors.password}</p>}
           </div>
 
           {/* Confirm password */}
-          <div className="space-y-1">
-            <label htmlFor="passwordConfirm" className="block text-xs font-medium text-muted">
+          <div className="space-y-1.5">
+            <label htmlFor="passwordConfirm" className="block text-sm font-medium text-muted">
               Confirm password
             </label>
             <input
               id="passwordConfirm" name="passwordConfirm" type="password" autoComplete="new-password" required
               value={form.passwordConfirm} onChange={handleChange}
-              placeholder="••••••••"
-              className={inputClass('passwordConfirm')}
+                            {...fieldProps('passwordConfirm')}
             />
-            {errors.passwordConfirm && <p className="text-xs text-red-400">{errors.passwordConfirm}</p>}
+            {errors.passwordConfirm && <p id="passwordConfirm-error" className="text-sm text-red-400">{errors.passwordConfirm}</p>}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-f1-red py-2.5 text-sm font-semibold text-white hover:bg-f1-red-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="btn btn-primary w-full py-2.5"
           >
-            {loading ? 'Creating account…' : 'Create my account'}
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 

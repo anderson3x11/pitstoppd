@@ -1,94 +1,39 @@
 import { Link } from "react-router-dom";
 import StarRating from "./StarRating";
-import { getCountryFlag } from "../lib/countryFlags";
+import Poster from "./Poster";
+import { formatDateShort } from "../lib/dateUtils";
 
 /**
- * GPCard — Grand Prix card
- *
- * Props:
- *  gp.id
- *  gp.name        : "Japanese Grand Prix"
- *  gp.season      : 2024
- *  gp.slug        : "japon"
- *  gp.country     : "Japan"
- *  gp.circuit     : "Suzuka Circuit"
- *  gp.date        : "2024-04-07"
- *  gp.posterUrl   : string | null
- *  gp.avgRating   : number | null
- *  gp.reviewCount : number | null
+ * GPCard — poster cliquable d'un GP + nom, date, note moyenne.
+ * gp: { name, season, slug, date, posterUrl|poster_url, raceType|race_type, avgRating, reviewCount }
  */
 export default function GPCard({ gp }) {
-  const href = `/gps/${gp.season}/${gp.slug}`;
-  const isSprint = gp.raceType === "sprint";
-
-  const displayName = isSprint
-    ? gp.name.replace(/ Sprint$/, "")
-    : gp.name;
-
-  const formattedDate = gp.date
-    ? new Date(gp.date).toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : null;
+  const isSprint = (gp.raceType ?? gp.race_type) === "sprint";
+  const displayName = gp.name.replace(/ Sprint$/, "");
 
   return (
-    <Link
-      to={href}
-      className="group block transition-transform duration-150 hover:scale-[1.02]"
-    >
-      <div
-        className={`rounded-lg overflow-hidden bg-card border-2 transition-colors duration-150 ${isSprint ? "border-amber-500/50 hover:border-amber-500/80" : "border-line hover:border-subtle"}`}
-      >
-        {/* Poster */}
-        <div className="aspect-[2/3] bg-card-hover relative overflow-hidden">
-          {gp.posterUrl ? (
-            <img
-              src={gp.posterUrl}
-              alt={gp.name}
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="h-full w-full flex flex-col items-center justify-center p-3 bg-gradient-to-b from-card-hover to-card">
-              <span className="text-4xl mb-2">
-                {getCountryFlag(gp.country)}
-              </span>
-              <span className="text-center text-[11px] font-medium text-subtle uppercase tracking-wide leading-tight">
-                {displayName}
-              </span>
-            </div>
-          )}
-        </div>
+    <Link to={`/gps/${gp.season}/${gp.slug}`} className="group block rounded-md">
+      <div className="relative transition-transform duration-200 ease-[var(--ease-out)] group-hover:-translate-y-1">
+        <Poster
+          race={gp}
+          className={`shadow-[0_8px_24px_-12px_rgba(0,0,0,0.8)] transition-shadow duration-200 group-hover:ring-2 group-hover:ring-white/40 ${isSprint ? "ring-sprint/40" : ""}`}
+        />
+      </div>
 
-        {/* Infos */}
-        <div className="p-2.5 space-y-1">
-          <div className="flex items-center gap-1.5">
-            <p className="text-[11px] text-subtle">{gp.season}</p>
-            {isSprint && (
-              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 border border-amber-400/40 rounded px-1 py-px leading-none">
-                Sprint
-              </span>
-            )}
-          </div>
-          <h3 className="text-xs font-semibold text-white leading-snug line-clamp-2">
-            {displayName}
-          </h3>
-          {formattedDate && (
-            <p className="text-[11px] text-subtle">{formattedDate}</p>
-          )}
-          {gp.avgRating != null ? (
-            <div className="flex items-center gap-1.5 pt-0.5">
+      <div className="pt-2.5 space-y-1">
+        <h3 className="text-sm font-semibold text-white leading-snug line-clamp-2 group-hover:text-f1-red transition-colors">
+          {displayName}
+        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-subtle">
+          <span className="flex items-center gap-1.5 min-w-0">
+            {isSprint && <span className="rounded-sm bg-sprint/15 px-1 text-[11px] font-bold uppercase tracking-wide text-sprint">Sprint</span>}
+            <span className="truncate">{gp.date ? formatDateShort(gp.date) : gp.season}</span>
+          </span>
+          {gp.avgRating != null && (
+            <span className="flex items-center gap-1">
               <StarRating value={gp.avgRating} size="sm" />
-              {gp.reviewCount != null && (
-                <span className="text-[10px] text-subtle">
-                  ({gp.reviewCount})
-                </span>
-              )}
-            </div>
-          ) : (
-            <p className="text-[11px] text-subtle italic">Not rated yet</p>
+              <span className="sr-only">{gp.reviewCount} ratings</span>
+            </span>
           )}
         </div>
       </div>
