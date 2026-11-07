@@ -1,6 +1,6 @@
 /**
- * Met à jour la saison en cours depuis Jolpica (calendrier, sprints, résultats, pilotes)
- * puis cherche sur Wikipedia les photos des pilotes qui n'en ont pas.
+ * Met à jour la saison en cours depuis Jolpica (calendrier, sprints, résultats, pilotes),
+ * ses posters depuis TheSportsDB, puis cherche sur Wikipedia les photos des pilotes qui n'en ont pas.
  *
  *   node --disable-warning=ExperimentalWarning scripts/refresh.js
  *
@@ -11,12 +11,18 @@ import { randomUUID } from 'node:crypto'
 import { all, get, run, tx } from '../server/db.js'
 
 const BASE = 'https://api.jolpi.ca/ergast/f1'
+const TSDB = 'https://www.thesportsdb.com/api/v1/json/123' // clé publique gratuite de TheSportsDB
 const CURRENT_SEASON = new Date().getFullYear()
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-async function fetchJson(url) {
+async function fetchJson(url, retries = 3) {
   const res = await fetch(url)
+  // Trop de requêtes (clé gratuite TheSportsDB) : on attend une minute et on retente
+  if (res.status === 429 && retries > 0) {
+    await sleep(60_000)
+    return fetchJson(url, retries - 1)
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status} — ${url}`)
   return res.json()
 }
@@ -161,6 +167,25 @@ async function main() {
     for (const race of sprintResults) if (sprintMap[race.round]) saveResults(sprintMap[race.round], race.SprintResults ?? [])
   })
   console.log(`  résultats : ${raceResults.length} courses, ${sprintResults.length} sprints`)
+
+  // Posters TheSportsDB de la saison : ils sont republiés (avec le bon numéro de manche) quand le
+  // calendrier change. Date vérifiée à un jour près pour ne jamais coller le poster d'un autre GP.
+  console.log('\nUpdating posters from TheSportsDB…')
+  const isEventType = { race: (name) => !/Practice|Qualifying|Sprint|Testing/i.test(name), sprint: (name) => / Sprint$/.test(name) }
+  let posters = 0
+  try {
+    for (const race of races) {
+      const events = (await fetchJson(`${TSDB}/eventsround.php?id=4370&r=${race.round}&s=${CURRENT_SEASON}`)).events ?? []
+      for (const [type, id, date] of [['race', raceMap[race.round], race.date], ['sprint', sprintMap[race.round], race.Sprint?.date]]) {
+        const ev = id && events.find((e) => e.strPoster && isEventType[type](e.strEvent) && Math.abs(new Date(e.dateEvent) - new Date(date)) <= 864e5)
+        if (ev && run('UPDATE races SET poster_url = ? WHERE id = ? AND poster_url IS NOT ?', ev.strPoster, id, ev.strPoster).changes) posters++
+      }
+      await sleep(2100) // clé gratuite : ~30 requêtes/min
+    }
+    console.log(`  ${posters} poster(s) mis à jour`)
+  } catch (err) {
+    console.log(`  TheSportsDB indisponible, posters inchangés (${err.message})`)
+  }
 
   console.log('\nUpdating driver photos from Wikipedia…')
   const failed = []
