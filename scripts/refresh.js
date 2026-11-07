@@ -80,18 +80,23 @@ async function fetchWikiPhoto(title) {
 
 // ─── Écriture en base ──────────────────────────────────────────────────
 
-// Le slug ne change jamais une fois créé (il est dans les URLs). Si un autre GP de la saison
-// l'utilise déjà (même circuit deux fois), on suffixe par le round.
+// Une course se retrouve par son circuit (slug), jamais par son numéro de manche : les manches
+// se décalent quand le calendrier change, et le poster suit la ligne. Le slug ne change jamais
+// une fois créé (il est dans les URLs) ; même circuit deux fois dans la saison → suffixe par le round.
+const claimed = new Set()
 function upsertRace(r) {
-  const existing = get('SELECT id FROM races WHERE season = ? AND round = ? AND race_type = ?', r.season, r.round, r.race_type)
+  const existing = all('SELECT id FROM races WHERE season = ? AND race_type = ? AND (slug = ? OR slug LIKE ?) ORDER BY rowid',
+    r.season, r.race_type, r.slug, `${r.slug}-%`).find((row) => !claimed.has(row.id))
   if (existing) {
-    run('UPDATE races SET name = ?, circuit = ?, country = ?, date = ? WHERE id = ?', r.name, r.circuit, r.country, r.date, existing.id)
+    claimed.add(existing.id)
+    run('UPDATE races SET round = ?, name = ?, circuit = ?, country = ?, date = ? WHERE id = ?', r.round, r.name, r.circuit, r.country, r.date, existing.id)
     return existing.id
   }
   const slug = get('SELECT 1 FROM races WHERE season = ? AND slug = ?', r.season, r.slug) ? `${r.slug}-${r.round}` : r.slug
   const id = randomUUID()
   run('INSERT INTO races (id, season, round, race_type, name, slug, circuit, country, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     id, r.season, r.round, r.race_type, r.name, slug, r.circuit, r.country, r.date)
+  claimed.add(id)
   return id
 }
 
@@ -125,6 +130,8 @@ async function main() {
   const raceMap = {}
   const sprintMap = {}
   tx(() => {
+    // Manches passées en négatif le temps de les réattribuer (contrainte UNIQUE season/round/race_type)
+    run('UPDATE races SET round = -round WHERE season = ?', CURRENT_SEASON)
     for (const race of races) {
       raceMap[race.round] = upsertRace({ ...base(race), race_type: 'race', name: race.raceName, slug: toSlug(race.Circuit.circuitId), date: race.date })
       // Le calendrier expose aussi les sprints à venir (contrairement à /sprint.json)
@@ -137,6 +144,10 @@ async function main() {
         })
       }
     }
+    // Ce qui n'est plus au calendrier officiel (course annulée, doublon) disparaît
+    const removed = all('SELECT name FROM races WHERE season = ? AND round < 0', CURRENT_SEASON)
+    run('DELETE FROM races WHERE season = ? AND round < 0', CURRENT_SEASON)
+    for (const r of removed) console.log(`  - retiré du calendrier : ${r.name}`)
   })
   console.log(`  ${races.length} races, ${Object.keys(sprintMap).length} sprints`)
 
@@ -144,6 +155,8 @@ async function main() {
   const raceResults = await fetchAllPages(`${CURRENT_SEASON}/results.json`)
   const sprintResults = Object.keys(sprintMap).length ? (await sleep(500), await fetchAllPages(`${CURRENT_SEASON}/sprint.json`)) : []
   tx(() => {
+    // Résultats repartis de zéro pour la saison : rien ne reste accroché à une ancienne manche
+    run('DELETE FROM race_drivers WHERE race_id IN (SELECT id FROM races WHERE season = ?)', CURRENT_SEASON)
     for (const race of raceResults) if (raceMap[race.round]) saveResults(raceMap[race.round], race.Results)
     for (const race of sprintResults) if (sprintMap[race.round]) saveResults(sprintMap[race.round], race.SprintResults ?? [])
   })
